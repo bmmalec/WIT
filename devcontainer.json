@@ -1,0 +1,35 @@
+{
+  "name": "WIT Development",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+  "workspaceFolder": "/workspace",
+  
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {}
+  },
+  
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "mongodb.mongodb-vscode",
+        "Vue.volar",
+        "bradlc.vscode-tailwindcss",
+        "humao.rest-client"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+  
+  "forwardPorts": [3000],
+  
+  "postCreateCommand": "npm install",
+  
+  "mounts": [
+    "source=${localWorkspaceFolder}/uploads,target=/workspace/uploads,type=bind"
+  ]
+}

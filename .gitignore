@@ -1,0 +1,21 @@
+node_modules/
+.env
+.env.local
+dist/
+build/
+logs/
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+uploads/*
+!uploads/.gitkeep
+coverage/
+
+# Zip files
+*.zip
+
+# Temporary/setup files
+setup-wit.sh
+WIT/
