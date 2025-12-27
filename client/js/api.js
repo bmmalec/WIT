@@ -196,10 +196,77 @@ const items = {
   },
 };
 
+// Shares API
+const shares = {
+  /**
+   * Invite a user to access a location
+   * @param {string} locationId - Location to share
+   * @param {Object} data - { email, permission, inheritToChildren? }
+   */
+  invite(locationId, data) {
+    return API.post(`/locations/${locationId}/share`, data);
+  },
+
+  /**
+   * Get all shares for a location
+   * @param {string} locationId - Location ID
+   */
+  getLocationShares(locationId) {
+    return API.get(`/locations/${locationId}/shares`);
+  },
+
+  /**
+   * Get locations shared with current user
+   */
+  getMyShares() {
+    return API.get('/shares');
+  },
+
+  /**
+   * Get pending invitations for current user
+   */
+  getPendingInvites() {
+    return API.get('/shares/pending');
+  },
+
+  /**
+   * Accept an invitation
+   * @param {string} token - Invite token
+   */
+  acceptInvite(token) {
+    return API.post(`/shares/accept/${token}`);
+  },
+
+  /**
+   * Decline an invitation
+   * @param {string} token - Invite token
+   */
+  declineInvite(token) {
+    return API.post(`/shares/decline/${token}`);
+  },
+
+  /**
+   * Update share permission
+   * @param {string} shareId - Share ID
+   * @param {string} permission - New permission level
+   */
+  updatePermission(shareId, permission) {
+    return API.put(`/shares/${shareId}`, { permission });
+  },
+
+  /**
+   * Revoke a share
+   * @param {string} shareId - Share ID
+   */
+  revoke(shareId) {
+    return API.delete(`/shares/${shareId}`);
+  },
+};
+
 // Export for ES modules
-export { API, ApiError, auth, locations, items };
+export { API, ApiError, auth, locations, items, shares };
 
 // Also expose globally for non-module scripts
 window.API = API;
 window.ApiError = ApiError;
-window.api = { auth, locations, items };
+window.api = { auth, locations, items, shares };

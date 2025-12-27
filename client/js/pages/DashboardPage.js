@@ -7,6 +7,8 @@ import LocationCard from '../components/LocationCard.js';
 import LocationForm from '../components/LocationForm.js';
 import LocationTree from '../components/LocationTree.js';
 import Breadcrumb from '../components/Breadcrumb.js';
+import ShareDialog from '../components/ShareDialog.js';
+import ShareList from '../components/ShareList.js';
 
 const { ref, computed, onMounted, watch } = Vue;
 
@@ -18,6 +20,8 @@ export default {
     LocationForm,
     LocationTree,
     Breadcrumb,
+    ShareDialog,
+    ShareList,
   },
 
   setup() {
@@ -44,6 +48,10 @@ export default {
     const selectedAncestors = ref([]);
     const loadingDetail = ref(false);
     const showDetailPanel = ref(false);
+
+    // Share dialog state
+    const showShareDialog = ref(false);
+    const shareListKey = ref(0); // For refreshing share list
 
     // Fetch locations (both flat and tree)
     const fetchLocations = async () => {
@@ -160,6 +168,21 @@ export default {
       closeDetailPanel();
     };
 
+    // Open share dialog
+    const openShareDialog = () => {
+      showShareDialog.value = true;
+    };
+
+    // Close share dialog
+    const closeShareDialog = () => {
+      showShareDialog.value = false;
+    };
+
+    // Handle successful invite
+    const handleShareInvited = () => {
+      shareListKey.value++; // Refresh share list
+    };
+
     // Open delete confirmation
     const openDeleteConfirm = (location) => {
       deletingLocation.value = location;
@@ -227,6 +250,8 @@ export default {
       selectedAncestors,
       loadingDetail,
       showDetailPanel,
+      showShareDialog,
+      shareListKey,
       handleLogout,
       goToProfile,
       openCreateModal,
@@ -238,6 +263,9 @@ export default {
       closeDetailPanel,
       handleBreadcrumbNavigate,
       handleBreadcrumbHome,
+      openShareDialog,
+      closeShareDialog,
+      handleShareInvited,
       openDeleteConfirm,
       closeDeleteConfirm,
       handleDelete,
@@ -630,6 +658,28 @@ export default {
                   </div>
                 </div>
 
+                <!-- Sharing Section -->
+                <div class="mb-6">
+                  <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-sm font-medium text-gray-700">Shared With</h4>
+                    <button
+                      @click="openShareDialog"
+                      class="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                      </svg>
+                      Invite
+                    </button>
+                  </div>
+                  <ShareList
+                    :key="shareListKey"
+                    :location-id="selectedLocation._id"
+                    :can-manage="true"
+                    @updated="shareListKey++"
+                  />
+                </div>
+
                 <!-- Actions -->
                 <div class="flex gap-2">
                   <button
@@ -665,6 +715,15 @@ export default {
           </div>
         </div>
       </div>
+
+      <!-- Share Dialog -->
+      <ShareDialog
+        v-if="selectedLocation"
+        :show="showShareDialog"
+        :location="selectedLocation"
+        @close="closeShareDialog"
+        @invited="handleShareInvited"
+      />
     </div>
   `,
 };
