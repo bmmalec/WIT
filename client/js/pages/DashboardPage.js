@@ -58,6 +58,7 @@ export default {
     const sharedLocations = ref([]);
     const loadingInvites = ref(false);
     const processingInvite = ref(null);
+    const leavingShare = ref(null);
 
     // Fetch locations (both flat and tree)
     const fetchLocations = async () => {
@@ -145,6 +146,28 @@ export default {
         manager: 'Manager',
       };
       return labels[permission] || permission;
+    };
+
+    // Leave a shared location
+    const leaveShare = async (share) => {
+      if (!confirm(`Are you sure you want to leave "${share.locationId?.name}"? You will lose access to this location.`)) {
+        return;
+      }
+
+      leavingShare.value = share._id;
+      try {
+        await window.api.shares.leave(share._id);
+        window.store?.success('You have left the shared location');
+        // Remove from list
+        sharedLocations.value = sharedLocations.value.filter(s => s._id !== share._id);
+        // Refresh locations in case they were visible
+        await fetchLocations();
+      } catch (err) {
+        console.error('Failed to leave share:', err);
+        window.store?.error(err.message || 'Failed to leave shared location');
+      } finally {
+        leavingShare.value = null;
+      }
     };
 
     // Handle logout
@@ -348,6 +371,8 @@ export default {
       acceptInvite,
       declineInvite,
       getPermissionLabel,
+      leaveShare,
+      leavingShare,
     };
   },
 
@@ -453,10 +478,12 @@ export default {
             <div
               v-for="share in sharedLocations"
               :key="share._id"
-              @click="handleLocationClick(share.locationId)"
-              class="bg-gray-50 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-colors"
+              class="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors group relative"
             >
-              <div class="flex items-start">
+              <div
+                @click="handleLocationClick(share.locationId)"
+                class="flex items-start cursor-pointer"
+              >
                 <span class="text-2xl mr-3">{{ share.locationId?.icon || '📍' }}</span>
                 <div class="min-w-0 flex-1">
                   <p class="font-medium text-gray-900 truncate">{{ share.locationId?.name }}</p>
@@ -467,6 +494,21 @@ export default {
                   </div>
                 </div>
               </div>
+              <!-- Leave button -->
+              <button
+                @click.stop="leaveShare(share)"
+                :disabled="leavingShare === share._id"
+                class="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                title="Leave shared location"
+              >
+                <svg v-if="leavingShare === share._id" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                </svg>
+              </button>
             </div>
           </div>
         </div>

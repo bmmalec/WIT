@@ -128,3 +128,17 @@ exports.updateShare = asyncHandler(async (req, res) => {
     message: 'Permission updated',
   });
 });
+
+/**
+ * @desc    Leave a shared location (user removes their own access)
+ * @route   POST /api/shares/:id/leave
+ * @access  Private
+ */
+exports.leaveShare = asyncHandler(async (req, res) => {
+  await shareService.leaveShare(req.user._id, req.params.id);
+
+  res.status(200).json({
+    success: true,
+    message: 'You have left the shared location',
+  });
+});

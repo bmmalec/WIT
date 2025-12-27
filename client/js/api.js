@@ -261,6 +261,14 @@ const shares = {
   revoke(shareId) {
     return API.delete(`/shares/${shareId}`);
   },
+
+  /**
+   * Leave a shared location (remove own access)
+   * @param {string} shareId - Share ID
+   */
+  leave(shareId) {
+    return API.post(`/shares/${shareId}/leave`);
+  },
 };
 
 // Export for ES modules

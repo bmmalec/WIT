@@ -66,5 +66,6 @@ router.post('/shares/accept/:token', tokenRule, validate, shareController.accept
 router.post('/shares/decline/:token', tokenRule, validate, shareController.declineInvite);
 router.put('/shares/:id', updateShareRules, validate, shareController.updateShare);
 router.delete('/shares/:id', shareIdRule, validate, shareController.revokeShare);
+router.post('/shares/:id/leave', shareIdRule, validate, shareController.leaveShare);
 
 module.exports = router;

@@ -208,6 +208,35 @@ class ShareService {
   }
 
   /**
+   * Leave a shared location (user removes their own access)
+   * @param {ObjectId} userId - User leaving
+   * @param {ObjectId} shareId - Share ID
+   * @returns {Promise<void>}
+   */
+  async leaveShare(userId, shareId) {
+    const share = await LocationShare.findById(shareId);
+
+    if (!share) {
+      throw AppError.notFound('Share not found', 'SHARE_NOT_FOUND');
+    }
+
+    // Verify this share belongs to the requesting user
+    if (!share.userId || share.userId.toString() !== userId.toString()) {
+      throw AppError.forbidden('You can only leave shares that belong to you', 'FORBIDDEN');
+    }
+
+    // Cannot leave if not accepted
+    if (share.status !== 'accepted') {
+      throw AppError.badRequest('You can only leave active shares', 'INVALID_STATUS');
+    }
+
+    // Mark as revoked (user left)
+    share.status = 'revoked';
+    share.revokedAt = new Date();
+    await share.save();
+  }
+
+  /**
    * Update share permission
    * @param {ObjectId} userId - User updating
    * @param {ObjectId} shareId - Share ID
