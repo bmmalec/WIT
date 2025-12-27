@@ -11,6 +11,7 @@ import ShareDialog from '../components/ShareDialog.js';
 import ShareList from '../components/ShareList.js';
 import ItemCard from '../components/ItemCard.js';
 import ItemForm from '../components/ItemForm.js';
+import MoveItemDialog from '../components/MoveItemDialog.js';
 
 const { ref, computed, onMounted, watch } = Vue;
 
@@ -26,6 +27,7 @@ export default {
     ShareList,
     ItemCard,
     ItemForm,
+    MoveItemDialog,
   },
 
   setup() {
@@ -73,6 +75,8 @@ export default {
     const showDeleteItemConfirm = ref(false);
     const deletingItem = ref(null);
     const deletingItemLoading = ref(false);
+    const showMoveDialog = ref(false);
+    const movingItem = ref(null);
 
     // Fetch locations (both flat and tree)
     const fetchLocations = async () => {
@@ -284,6 +288,29 @@ export default {
       if (selectedLocation.value) {
         await fetchItems(selectedLocation.value._id);
       }
+    };
+
+    // Open move item dialog
+    const openMoveDialog = (item) => {
+      movingItem.value = item;
+      showMoveDialog.value = true;
+    };
+
+    // Close move item dialog
+    const closeMoveDialog = () => {
+      showMoveDialog.value = false;
+      movingItem.value = null;
+    };
+
+    // Handle item moved
+    const handleItemMoved = async ({ item, newLocationId }) => {
+      closeMoveDialog();
+      // Refresh items in current location (item was moved away)
+      if (selectedLocation.value) {
+        await fetchItems(selectedLocation.value._id);
+      }
+      // Refresh locations to update item counts
+      await fetchLocations();
     };
 
     // Handle logout
@@ -515,6 +542,12 @@ export default {
       handleDeleteItem,
       handleQuantityAdjust,
       fetchItems,
+      // Move dialog
+      showMoveDialog,
+      movingItem,
+      openMoveDialog,
+      closeMoveDialog,
+      handleItemMoved,
     };
   },
 
@@ -1015,6 +1048,7 @@ export default {
                       @click="openEditItemForm(item)"
                       @edit="openEditItemForm(item)"
                       @delete="openDeleteItemConfirm(item)"
+                      @move="openMoveDialog(item)"
                       @adjust-quantity="handleQuantityAdjust"
                     />
                   </div>
@@ -1182,6 +1216,15 @@ export default {
           </div>
         </div>
       </div>
+
+      <!-- Move Item Dialog -->
+      <MoveItemDialog
+        v-if="movingItem"
+        :show="showMoveDialog"
+        :item="movingItem"
+        @close="closeMoveDialog"
+        @moved="handleItemMoved"
+      />
     </div>
   `,
 };

@@ -19,7 +19,7 @@ export default {
     },
   },
 
-  emits: ['click', 'edit', 'delete', 'adjust-quantity'],
+  emits: ['click', 'edit', 'delete', 'move', 'adjust-quantity'],
 
   setup(props, { emit }) {
     const adjusting = ref(false);
@@ -130,6 +130,15 @@ export default {
           class="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
           @click.stop
         >
+          <button
+            @click="$emit('move', item)"
+            class="p-1.5 bg-white rounded-full shadow-md hover:bg-gray-50"
+            title="Move"
+          >
+            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+            </svg>
+          </button>
           <button
             @click="$emit('edit', item)"
             class="p-1.5 bg-white rounded-full shadow-md hover:bg-gray-50"
