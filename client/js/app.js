@@ -15,6 +15,7 @@ import ProfilePage from './pages/ProfilePage.js';
 import EditProfilePage from './pages/EditProfilePage.js';
 import ChangePasswordPage from './pages/ChangePasswordPage.js';
 import SettingsPage from './pages/SettingsPage.js';
+import AcceptInvitePage from './pages/AcceptInvitePage.js';
 
 const { createApp, ref, onMounted, watch } = Vue;
 
@@ -50,13 +51,17 @@ const routes = [
   {
     path: '/',
     component: {
+      setup() {
+        const navigate = (path) => window.router.push(path);
+        return { navigate };
+      },
       template: `
         <div class="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
           <h1 class="text-4xl font-bold text-blue-600 mb-2">WIT</h1>
           <p class="text-gray-600 mb-8">Where Is It? - Smart Inventory Management</p>
           <div class="flex gap-4">
-            <a href="/login" @click.prevent="router.push('/login')" class="btn-primary">Sign In</a>
-            <a href="/register" @click.prevent="router.push('/register')" class="btn-secondary">Create Account</a>
+            <a href="/login" @click.prevent="navigate('/login')" class="btn-primary">Sign In</a>
+            <a href="/register" @click.prevent="navigate('/register')" class="btn-secondary">Create Account</a>
           </div>
         </div>
       `,
@@ -99,13 +104,22 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/invite/:token',
+    component: AcceptInvitePage,
+    meta: {}, // Can be accessed by anyone, page handles auth check
+  },
+  {
     path: '*',
     component: {
+      setup() {
+        const navigate = (path) => window.router.push(path);
+        return { navigate };
+      },
       template: `
         <div class="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
           <h1 class="text-6xl font-bold text-gray-300 mb-4">404</h1>
           <p class="text-gray-600 mb-8">Page not found</p>
-          <a href="/" @click.prevent="router.push('/')" class="btn-primary">Go Home</a>
+          <a href="/" @click.prevent="navigate('/')" class="btn-primary">Go Home</a>
         </div>
       `,
     },

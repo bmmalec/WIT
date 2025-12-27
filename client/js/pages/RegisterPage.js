@@ -16,11 +16,16 @@ export default {
 
   setup() {
     const handleSuccess = (user) => {
-      // Navigate to dashboard after successful registration
+      // Check for return URL (e.g., from invitation page)
+      const returnUrl = sessionStorage.getItem('returnUrl');
+      sessionStorage.removeItem('returnUrl');
+
+      const destination = returnUrl || '/dashboard';
+
       if (window.router) {
-        window.router.push('/dashboard');
+        window.router.push(destination);
       } else {
-        window.location.href = '/dashboard';
+        window.location.href = destination;
       }
     };
 

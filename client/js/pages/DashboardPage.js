@@ -53,6 +53,12 @@ export default {
     const showShareDialog = ref(false);
     const shareListKey = ref(0); // For refreshing share list
 
+    // Pending invites and shared locations
+    const pendingInvites = ref([]);
+    const sharedLocations = ref([]);
+    const loadingInvites = ref(false);
+    const processingInvite = ref(null);
+
     // Fetch locations (both flat and tree)
     const fetchLocations = async () => {
       loading.value = true;
@@ -79,6 +85,66 @@ export default {
     // Toggle view mode
     const toggleViewMode = () => {
       viewMode.value = viewMode.value === 'grid' ? 'tree' : 'grid';
+    };
+
+    // Fetch pending invites and shared locations
+    const fetchInvitesAndShares = async () => {
+      loadingInvites.value = true;
+      try {
+        const [invitesRes, sharesRes] = await Promise.all([
+          window.api.shares.getPendingInvites(),
+          window.api.shares.getMyShares(),
+        ]);
+        pendingInvites.value = invitesRes.data.invites || [];
+        sharedLocations.value = sharesRes.data.shares || [];
+      } catch (err) {
+        console.error('Failed to fetch invites/shares:', err);
+      } finally {
+        loadingInvites.value = false;
+      }
+    };
+
+    // Accept pending invite
+    const acceptInvite = async (invite) => {
+      processingInvite.value = invite._id;
+      try {
+        await window.api.shares.acceptInvite(invite.inviteToken);
+        window.store?.success('Invitation accepted!');
+        // Refresh data
+        await Promise.all([fetchLocations(), fetchInvitesAndShares()]);
+      } catch (err) {
+        console.error('Failed to accept invite:', err);
+        window.store?.error(err.message || 'Failed to accept invitation');
+      } finally {
+        processingInvite.value = null;
+      }
+    };
+
+    // Decline pending invite
+    const declineInvite = async (invite) => {
+      processingInvite.value = invite._id;
+      try {
+        await window.api.shares.declineInvite(invite.inviteToken);
+        window.store?.info('Invitation declined');
+        // Remove from list
+        pendingInvites.value = pendingInvites.value.filter(i => i._id !== invite._id);
+      } catch (err) {
+        console.error('Failed to decline invite:', err);
+        window.store?.error(err.message || 'Failed to decline invitation');
+      } finally {
+        processingInvite.value = null;
+      }
+    };
+
+    // Get permission label
+    const getPermissionLabel = (permission) => {
+      const labels = {
+        viewer: 'Viewer',
+        contributor: 'Contributor',
+        editor: 'Editor',
+        manager: 'Manager',
+      };
+      return labels[permission] || permission;
     };
 
     // Handle logout
@@ -230,7 +296,10 @@ export default {
       }
     };
 
-    onMounted(fetchLocations);
+    onMounted(() => {
+      fetchLocations();
+      fetchInvitesAndShares();
+    });
 
     return {
       user,
@@ -252,6 +321,10 @@ export default {
       showDetailPanel,
       showShareDialog,
       shareListKey,
+      pendingInvites,
+      sharedLocations,
+      loadingInvites,
+      processingInvite,
       handleLogout,
       goToProfile,
       openCreateModal,
@@ -271,6 +344,10 @@ export default {
       handleDelete,
       fetchLocations,
       toggleViewMode,
+      fetchInvitesAndShares,
+      acceptInvite,
+      declineInvite,
+      getPermissionLabel,
     };
   },
 
@@ -312,6 +389,86 @@ export default {
           <p class="text-gray-600">
             Manage your locations and items. Start by creating your first location.
           </p>
+        </div>
+
+        <!-- Pending Invitations Banner -->
+        <div v-if="pendingInvites.length > 0" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
+          <div class="flex items-start">
+            <div class="flex-shrink-0">
+              <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+              </svg>
+            </div>
+            <div class="ml-3 flex-1">
+              <h3 class="text-sm font-medium text-blue-800">
+                You have {{ pendingInvites.length }} pending invitation{{ pendingInvites.length > 1 ? 's' : '' }}
+              </h3>
+              <div class="mt-3 space-y-2">
+                <div
+                  v-for="invite in pendingInvites"
+                  :key="invite._id"
+                  class="flex items-center justify-between bg-white rounded-lg p-3 shadow-sm"
+                >
+                  <div class="flex items-center min-w-0">
+                    <span class="text-xl mr-2">{{ invite.locationId?.icon || '📍' }}</span>
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium text-gray-900 truncate">{{ invite.locationId?.name }}</p>
+                      <p class="text-xs text-gray-500">
+                        From {{ invite.invitedBy?.name }} · {{ getPermissionLabel(invite.permission) }}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 ml-4">
+                    <button
+                      @click="declineInvite(invite)"
+                      :disabled="processingInvite === invite._id"
+                      class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+                    >
+                      Decline
+                    </button>
+                    <button
+                      @click="acceptInvite(invite)"
+                      :disabled="processingInvite === invite._id"
+                      class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      <span v-if="processingInvite === invite._id">...</span>
+                      <span v-else>Accept</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Shared With Me Section -->
+        <div v-if="sharedLocations.length > 0" class="bg-white rounded-lg shadow-sm p-6 mb-8">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            Shared With Me
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div
+              v-for="share in sharedLocations"
+              :key="share._id"
+              @click="handleLocationClick(share.locationId)"
+              class="bg-gray-50 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-colors"
+            >
+              <div class="flex items-start">
+                <span class="text-2xl mr-3">{{ share.locationId?.icon || '📍' }}</span>
+                <div class="min-w-0 flex-1">
+                  <p class="font-medium text-gray-900 truncate">{{ share.locationId?.name }}</p>
+                  <p class="text-sm text-gray-500 capitalize">{{ share.locationId?.type?.replace('_', ' ') }}</p>
+                  <div class="mt-2 flex items-center text-xs text-gray-500">
+                    <span class="px-2 py-0.5 bg-gray-200 rounded-full">{{ getPermissionLabel(share.permission) }}</span>
+                    <span class="ml-2">from {{ share.invitedBy?.name }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Quick Actions -->

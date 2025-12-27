@@ -20,7 +20,8 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", 'https://unpkg.com', 'https://cdn.tailwindcss.com'],
+        // 'unsafe-eval' required for Vue's runtime template compilation
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://unpkg.com', 'https://cdn.tailwindcss.com'],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.tailwindcss.com'],
         imgSrc: ["'self'", 'data:', 'https:'],
         connectSrc: ["'self'"],
