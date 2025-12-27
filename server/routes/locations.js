@@ -1,6 +1,7 @@
 const express = require('express');
 const { body, param, query } = require('express-validator');
 const locationController = require('../controllers/locationController');
+const itemController = require('../controllers/itemController');
 const { protect } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { getTypeValues } = require('../seeds/locationTypes');
@@ -118,6 +119,7 @@ router.get('/', locationController.getAll);
 router.get('/tree', locationController.getTree);
 router.get('/:id', idParamRule, validate, locationController.getOne);
 router.get('/:id/breadcrumb', idParamRule, validate, locationController.getBreadcrumb);
+router.get('/:id/items', idParamRule, validate, itemController.getByLocation);
 router.put('/:id', updateLocationRules, validate, locationController.update);
 router.delete('/:id', idParamRule, validate, locationController.delete);
 

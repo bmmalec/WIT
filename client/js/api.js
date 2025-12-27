@@ -137,6 +137,23 @@ const auth = {
   updateSettings(data) {
     return API.put('/auth/me/settings', data);
   },
+
+  /**
+   * Request password reset
+   * @param {Object} data - { email }
+   */
+  forgotPassword(data) {
+    return API.post('/auth/forgot-password', data);
+  },
+
+  /**
+   * Reset password with token
+   * @param {string} token - Reset token
+   * @param {Object} data - { password }
+   */
+  resetPassword(token, data) {
+    return API.post(`/auth/reset-password/${token}`, data);
+  },
 };
 
 // Locations API (placeholder for future)
@@ -172,27 +189,94 @@ const locations = {
   },
 };
 
-// Items API (placeholder for future)
+// Items API
 const items = {
-  list(params = {}) {
-    const query = new URLSearchParams(params).toString();
-    return API.get(`/items${query ? `?${query}` : ''}`);
-  },
-
-  get(id) {
-    return API.get(`/items/${id}`);
-  },
-
+  /**
+   * Create a new item
+   * @param {Object} data - Item data
+   */
   create(data) {
     return API.post('/items', data);
   },
 
+  /**
+   * Get item by ID
+   * @param {string} id - Item ID
+   */
+  get(id) {
+    return API.get(`/items/${id}`);
+  },
+
+  /**
+   * Get items for a location
+   * @param {string} locationId - Location ID
+   * @param {Object} params - Query params (categoryId, itemType, limit, skip)
+   */
+  getByLocation(locationId, params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const url = `/locations/${locationId}/items${queryString ? `?${queryString}` : ''}`;
+    return API.get(url);
+  },
+
+  /**
+   * Search items
+   * @param {string} query - Search query
+   * @param {number} limit - Max results
+   */
+  search(query, limit = 50) {
+    return API.get(`/items/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+  },
+
+  /**
+   * Update an item
+   * @param {string} id - Item ID
+   * @param {Object} data - Updated fields
+   */
   update(id, data) {
     return API.put(`/items/${id}`, data);
   },
 
+  /**
+   * Delete an item
+   * @param {string} id - Item ID
+   */
   delete(id) {
     return API.delete(`/items/${id}`);
+  },
+
+  /**
+   * Move item to a new location
+   * @param {string} id - Item ID
+   * @param {string} locationId - New location ID
+   */
+  move(id, locationId) {
+    return API.put(`/items/${id}/move`, { locationId });
+  },
+
+  /**
+   * Adjust item quantity
+   * @param {string} id - Item ID
+   * @param {number} adjustment - Amount to adjust (positive or negative)
+   */
+  adjustQuantity(id, adjustment) {
+    return API.put(`/items/${id}/quantity`, { adjustment });
+  },
+
+  /**
+   * Get low stock items
+   */
+  getLowStock() {
+    return API.get('/items/low-stock');
+  },
+};
+
+// Categories API
+const categories = {
+  /**
+   * Get all categories (tree structure)
+   */
+  getAll() {
+    return API.get('/categories');
   },
 };
 
@@ -272,9 +356,9 @@ const shares = {
 };
 
 // Export for ES modules
-export { API, ApiError, auth, locations, items, shares };
+export { API, ApiError, auth, locations, items, categories, shares };
 
 // Also expose globally for non-module scripts
 window.API = API;
 window.ApiError = ApiError;
-window.api = { auth, locations, items, shares };
+window.api = { auth, locations, items, categories, shares };

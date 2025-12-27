@@ -1,4 +1,17 @@
 const mongoose = require('mongoose');
+const Category = require('../models/Category');
+const { seedCategories } = require('../seeds/categories');
+
+/**
+ * Run database seeders
+ */
+const runSeeders = async () => {
+  try {
+    await seedCategories(Category);
+  } catch (error) {
+    console.error('Error running seeders:', error.message);
+  }
+};
 
 /**
  * Connect to MongoDB Atlas
@@ -14,6 +27,9 @@ const connectDB = async () => {
     });
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
+
+    // Run seeders
+    await runSeeders();
 
     // Handle connection events
     mongoose.connection.on('error', (err) => {

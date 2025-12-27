@@ -140,6 +140,62 @@ class AuthService {
   }
 
   /**
+   * Request password reset
+   * @param {string} email - User email
+   * @returns {Promise<Object>} Reset token info (for dev/testing) or void
+   */
+  async requestPasswordReset(email) {
+    const user = await User.findByEmail(email);
+
+    // Don't reveal if email exists - always return success
+    if (!user) {
+      return { message: 'If an account with that email exists, a reset link has been sent.' };
+    }
+
+    // Generate reset token
+    const resetToken = user.generatePasswordResetToken();
+    await user.save({ validateBeforeSave: false });
+
+    // In production, this would send an email
+    // For now, we'll return the reset URL for testing
+    const resetUrl = `/reset-password/${resetToken}`;
+
+    // Log the reset link (in dev mode)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`Password reset link: ${resetUrl}`);
+    }
+
+    return {
+      message: 'If an account with that email exists, a reset link has been sent.',
+      // Include token in non-production for testing
+      ...(process.env.NODE_ENV !== 'production' && { resetToken, resetUrl }),
+    };
+  }
+
+  /**
+   * Reset password using token
+   * @param {string} token - Reset token
+   * @param {string} newPassword - New password
+   * @returns {Promise<void>}
+   */
+  async resetPassword(token, newPassword) {
+    // Find user by reset token
+    const user = await User.findByResetToken(token);
+
+    if (!user) {
+      throw AppError.badRequest('Invalid or expired reset token', 'INVALID_RESET_TOKEN');
+    }
+
+    // Update password
+    user.passwordHash = newPassword;
+    user.clearPasswordResetToken();
+    await user.save();
+
+    // Reset any login attempts
+    await user.resetLoginAttempts();
+  }
+
+  /**
    * Update user settings
    * @param {string} userId - User ID
    * @param {Object} settings - Settings to update

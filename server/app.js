@@ -103,7 +103,8 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authLimiter, require('./routes/auth'));
 app.use('/api/locations', require('./routes/locations'));
 app.use('/api', require('./routes/shares')); // Shares routes (includes /shares and /locations/:id/share)
-// app.use('/api/items', require('./routes/items'));
+app.use('/api/items', require('./routes/items'));
+app.use('/api/categories', require('./routes/categories'));
 
 // Serve static files from client directory
 app.use(express.static(path.join(__dirname, '../client')));

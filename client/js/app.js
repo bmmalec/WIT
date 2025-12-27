@@ -10,6 +10,8 @@ import { auth } from './api.js';
 // Import pages
 import RegisterPage from './pages/RegisterPage.js';
 import LoginPage from './pages/LoginPage.js';
+import ForgotPasswordPage from './pages/ForgotPasswordPage.js';
+import ResetPasswordPage from './pages/ResetPasswordPage.js';
 import DashboardPage from './pages/DashboardPage.js';
 import ProfilePage from './pages/ProfilePage.js';
 import EditProfilePage from './pages/EditProfilePage.js';
@@ -76,6 +78,16 @@ const routes = [
   {
     path: '/login',
     component: LoginPage,
+    meta: { guestOnly: true },
+  },
+  {
+    path: '/forgot-password',
+    component: ForgotPasswordPage,
+    meta: { guestOnly: true },
+  },
+  {
+    path: '/reset-password/:token',
+    component: ResetPasswordPage,
     meta: { guestOnly: true },
   },
   {

@@ -136,6 +136,43 @@ exports.updateSettings = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Request password reset
+ * @route   POST /api/auth/forgot-password
+ * @access  Public
+ */
+exports.forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  const result = await authService.requestPasswordReset(email);
+
+  res.status(200).json({
+    success: true,
+    message: result.message,
+    // Include reset info in non-production for testing
+    ...(process.env.NODE_ENV !== 'production' && result.resetToken && {
+      data: { resetToken: result.resetToken, resetUrl: result.resetUrl },
+    }),
+  });
+});
+
+/**
+ * @desc    Reset password with token
+ * @route   POST /api/auth/reset-password/:token
+ * @access  Public
+ */
+exports.resetPassword = asyncHandler(async (req, res) => {
+  const { token } = req.params;
+  const { password } = req.body;
+
+  await authService.resetPassword(token, password);
+
+  res.status(200).json({
+    success: true,
+    message: 'Password reset successful. You can now log in with your new password.',
+  });
+});
+
 // Helper to generate token for a user ID
 async function generateTokenForUser(userId) {
   const User = require('../models/User');

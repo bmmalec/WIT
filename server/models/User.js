@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
 const userSchema = new mongoose.Schema(
   {
@@ -78,6 +79,17 @@ const userSchema = new mongoose.Schema(
     lockUntil: {
       type: Date,
       default: null,
+    },
+
+    // Password reset fields
+    passwordResetToken: {
+      type: String,
+      select: false,
+    },
+
+    passwordResetExpires: {
+      type: Date,
+      select: false,
     },
   },
   {
@@ -164,6 +176,43 @@ userSchema.methods.resetLoginAttempts = function () {
     $set: { loginAttempts: 0 },
     $unset: { lockUntil: 1 },
   });
+};
+
+// Instance method: Generate password reset token
+userSchema.methods.generatePasswordResetToken = function () {
+  // Generate random token
+  const resetToken = crypto.randomBytes(32).toString('hex');
+
+  // Hash token and save to database
+  this.passwordResetToken = crypto
+    .createHash('sha256')
+    .update(resetToken)
+    .digest('hex');
+
+  // Token expires in 1 hour
+  this.passwordResetExpires = Date.now() + 60 * 60 * 1000;
+
+  // Return unhashed token (to send via email)
+  return resetToken;
+};
+
+// Instance method: Clear password reset token
+userSchema.methods.clearPasswordResetToken = function () {
+  this.passwordResetToken = undefined;
+  this.passwordResetExpires = undefined;
+};
+
+// Static method: Find user by reset token
+userSchema.statics.findByResetToken = function (token) {
+  const hashedToken = crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
+
+  return this.findOne({
+    passwordResetToken: hashedToken,
+    passwordResetExpires: { $gt: Date.now() },
+  }).select('+passwordResetToken +passwordResetExpires');
 };
 
 // Static method: Find user by email

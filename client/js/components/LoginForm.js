@@ -194,7 +194,7 @@ export default {
           />
           <span class="ml-2 text-sm text-gray-600">Remember me</span>
         </label>
-        <a href="#" class="text-sm text-blue-600 hover:text-blue-800">
+        <a href="/forgot-password" @click.prevent="window.router?.push('/forgot-password')" class="text-sm text-blue-600 hover:text-blue-800">
           Forgot password?
         </a>
       </div>
