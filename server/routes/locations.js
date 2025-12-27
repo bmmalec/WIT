@@ -3,11 +3,15 @@ const { body, param, query } = require('express-validator');
 const locationController = require('../controllers/locationController');
 const { protect } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
+const { getTypeValues } = require('../seeds/locationTypes');
 
 const router = express.Router();
 
 // All routes require authentication
 router.use(protect);
+
+// Get valid location types from seed data
+const validLocationTypes = getTypeValues();
 
 // Validation rules
 const createLocationRules = [
@@ -20,12 +24,7 @@ const createLocationRules = [
   body('type')
     .notEmpty()
     .withMessage('Type is required')
-    .isIn([
-      'house', 'warehouse', 'storage_unit', 'office', 'vehicle',
-      'room', 'zone', 'container', 'garage', 'basement', 'attic',
-      'kitchen', 'bedroom', 'bathroom', 'workshop', 'living_room',
-      'closet', 'cabinet', 'drawer', 'shelf', 'box', 'bin', 'custom'
-    ])
+    .isIn(validLocationTypes)
     .withMessage('Invalid location type'),
   body('description')
     .optional()
@@ -86,12 +85,7 @@ const updateLocationRules = [
     .withMessage('Name cannot exceed 100 characters'),
   body('type')
     .optional()
-    .isIn([
-      'house', 'warehouse', 'storage_unit', 'office', 'vehicle',
-      'room', 'zone', 'container', 'garage', 'basement', 'attic',
-      'kitchen', 'bedroom', 'bathroom', 'workshop', 'living_room',
-      'closet', 'cabinet', 'drawer', 'shelf', 'box', 'bin', 'custom'
-    ])
+    .isIn(validLocationTypes)
     .withMessage('Invalid location type'),
   body('description')
     .optional()

@@ -909,17 +909,20 @@ Update LocationForm:
 ---
 
 ### US-2.4.1: System Location Types
-**Priority:** P0 | **Complexity:** S (2) | **Status:** ⬜ Not Started
+**Priority:** P0 | **Complexity:** S (2) | **Status:** ✅ Complete
 
 **Story:** As a user, I want pre-defined location types with icons.
 
 #### DATABASE Agent Tasks:
-- [ ] Create `server/seeds/locationTypes.js`:
-  - Property types: house, warehouse, storage_unit, office, vehicle
-  - Room types: garage, basement, attic, kitchen, bedroom, bathroom, workshop, living_room
-  - Zone types: inbound, staging, racking, floor, outbound
-  - Container types: drawer_cabinet, shelving, bin_rack, tool_chest, pegboard, closet, cabinet
-- [ ] Include icon names and default colors for each
+- [x] Create `server/seeds/locationTypes.js`:
+  - Property types (8): house, apartment, warehouse, storage_unit, office, vehicle, boat, rv
+  - Room types (13): garage, basement, attic, kitchen, bedroom, bathroom, living_room, dining_room, office_room, laundry, workshop, utility, room
+  - Zone types (9): zone, inbound, outbound, staging, receiving, shipping, racking, floor, aisle
+  - Container types (17): closet, cabinet, drawer, shelf, box, bin, container, drawer_cabinet, shelving, bin_rack, tool_chest, pegboard, locker, safe, trunk, crate, pallet
+- [x] Include emoji icons and default colors for each
+- [x] Export helper functions: getTypeValues, getTypeInfo, getTypesByCategory, isContainerType
+- [x] Backend routes use shared type definitions
+- [x] Frontend LocationForm, LocationCard, LocationTreeNode updated with all 47+ types
 
 **DATABASE Prompt:**
 ```

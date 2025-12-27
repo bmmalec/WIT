@@ -7,20 +7,40 @@ const { ref, computed } = Vue;
 
 // Default icons for location types
 const TYPE_ICONS = {
+  // Properties
   house: '🏠',
+  apartment: '🏢',
   warehouse: '🏭',
   storage_unit: '📦',
   office: '🏢',
   vehicle: '🚗',
+  boat: '⛵',
+  rv: '🚐',
+  // Rooms
   garage: '🚙',
   basement: '🪜',
   attic: '🏚️',
   kitchen: '🍳',
   bedroom: '🛏️',
   bathroom: '🚿',
-  workshop: '🔧',
   living_room: '🛋️',
+  dining_room: '🍽️',
+  office_room: '💻',
+  laundry: '🧺',
+  workshop: '🔧',
+  utility: '🔌',
   room: '🚪',
+  // Zones
+  zone: '📍',
+  inbound: '📥',
+  outbound: '📤',
+  staging: '⏳',
+  receiving: '📬',
+  shipping: '🚚',
+  racking: '🏗️',
+  floor: '⬜',
+  aisle: '↔️',
+  // Containers
   closet: '🚪',
   cabinet: '🗄️',
   drawer: '🗃️',
@@ -28,7 +48,17 @@ const TYPE_ICONS = {
   box: '📦',
   bin: '🗑️',
   container: '📥',
-  zone: '📍',
+  drawer_cabinet: '🗄️',
+  shelving: '📚',
+  bin_rack: '🗃️',
+  tool_chest: '🧰',
+  pegboard: '📌',
+  locker: '🔐',
+  safe: '🔒',
+  trunk: '📦',
+  crate: '📦',
+  pallet: '🪵',
+  // Other
   custom: '✏️',
 };
 

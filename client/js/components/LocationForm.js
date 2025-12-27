@@ -7,23 +7,40 @@ const { ref, reactive, computed, watch } = Vue;
 
 // Location type definitions with icons and labels
 const LOCATION_TYPES = [
-  // Properties
+  // Properties - top-level locations
   { value: 'house', label: 'House', icon: '🏠', category: 'property' },
+  { value: 'apartment', label: 'Apartment', icon: '🏢', category: 'property' },
   { value: 'warehouse', label: 'Warehouse', icon: '🏭', category: 'property' },
   { value: 'storage_unit', label: 'Storage Unit', icon: '📦', category: 'property' },
   { value: 'office', label: 'Office', icon: '🏢', category: 'property' },
   { value: 'vehicle', label: 'Vehicle', icon: '🚗', category: 'property' },
-  // Rooms
+  { value: 'boat', label: 'Boat', icon: '⛵', category: 'property' },
+  { value: 'rv', label: 'RV/Camper', icon: '🚐', category: 'property' },
+  // Rooms - inside properties
   { value: 'garage', label: 'Garage', icon: '🚙', category: 'room' },
   { value: 'basement', label: 'Basement', icon: '🪜', category: 'room' },
   { value: 'attic', label: 'Attic', icon: '🏚️', category: 'room' },
   { value: 'kitchen', label: 'Kitchen', icon: '🍳', category: 'room' },
   { value: 'bedroom', label: 'Bedroom', icon: '🛏️', category: 'room' },
   { value: 'bathroom', label: 'Bathroom', icon: '🚿', category: 'room' },
-  { value: 'workshop', label: 'Workshop', icon: '🔧', category: 'room' },
   { value: 'living_room', label: 'Living Room', icon: '🛋️', category: 'room' },
+  { value: 'dining_room', label: 'Dining Room', icon: '🍽️', category: 'room' },
+  { value: 'office_room', label: 'Home Office', icon: '💻', category: 'room' },
+  { value: 'laundry', label: 'Laundry Room', icon: '🧺', category: 'room' },
+  { value: 'workshop', label: 'Workshop', icon: '🔧', category: 'room' },
+  { value: 'utility', label: 'Utility Room', icon: '🔌', category: 'room' },
   { value: 'room', label: 'Other Room', icon: '🚪', category: 'room' },
-  // Containers
+  // Warehouse zones
+  { value: 'zone', label: 'Zone', icon: '📍', category: 'zone' },
+  { value: 'inbound', label: 'Inbound', icon: '📥', category: 'zone' },
+  { value: 'outbound', label: 'Outbound', icon: '📤', category: 'zone' },
+  { value: 'staging', label: 'Staging', icon: '⏳', category: 'zone' },
+  { value: 'receiving', label: 'Receiving', icon: '📬', category: 'zone' },
+  { value: 'shipping', label: 'Shipping', icon: '🚚', category: 'zone' },
+  { value: 'racking', label: 'Racking', icon: '🏗️', category: 'zone' },
+  { value: 'floor', label: 'Floor Area', icon: '⬜', category: 'zone' },
+  { value: 'aisle', label: 'Aisle', icon: '↔️', category: 'zone' },
+  // Containers - storage containers
   { value: 'closet', label: 'Closet', icon: '🚪', category: 'container' },
   { value: 'cabinet', label: 'Cabinet', icon: '🗄️', category: 'container' },
   { value: 'drawer', label: 'Drawer', icon: '🗃️', category: 'container' },
@@ -31,8 +48,17 @@ const LOCATION_TYPES = [
   { value: 'box', label: 'Box', icon: '📦', category: 'container' },
   { value: 'bin', label: 'Bin', icon: '🗑️', category: 'container' },
   { value: 'container', label: 'Container', icon: '📥', category: 'container' },
-  // Other
-  { value: 'zone', label: 'Zone', icon: '📍', category: 'other' },
+  { value: 'drawer_cabinet', label: 'Drawer Cabinet', icon: '🗄️', category: 'container' },
+  { value: 'shelving', label: 'Shelving Unit', icon: '📚', category: 'container' },
+  { value: 'bin_rack', label: 'Bin Rack', icon: '🗃️', category: 'container' },
+  { value: 'tool_chest', label: 'Tool Chest', icon: '🧰', category: 'container' },
+  { value: 'pegboard', label: 'Pegboard', icon: '📌', category: 'container' },
+  { value: 'locker', label: 'Locker', icon: '🔐', category: 'container' },
+  { value: 'safe', label: 'Safe', icon: '🔒', category: 'container' },
+  { value: 'trunk', label: 'Trunk', icon: '📦', category: 'container' },
+  { value: 'crate', label: 'Crate', icon: '📦', category: 'container' },
+  { value: 'pallet', label: 'Pallet', icon: '🪵', category: 'container' },
+  // Other/Custom
   { value: 'custom', label: 'Custom', icon: '✏️', category: 'other' },
 ];
 
@@ -93,7 +119,11 @@ export default {
     const showCapacity = ref(false);
 
     // Container types that support capacity configuration
-    const CONTAINER_TYPES = ['closet', 'cabinet', 'drawer', 'shelf', 'box', 'bin', 'container', 'storage_unit'];
+    const CONTAINER_TYPES = [
+      'closet', 'cabinet', 'drawer', 'shelf', 'box', 'bin', 'container',
+      'drawer_cabinet', 'shelving', 'bin_rack', 'tool_chest', 'pegboard',
+      'locker', 'safe', 'trunk', 'crate', 'pallet', 'storage_unit'
+    ];
 
     // Check if current type is a container
     const isContainerType = computed(() => {
