@@ -833,6 +833,7 @@ export default {
                     :key="shareListKey"
                     :location-id="selectedLocation._id"
                     :can-manage="true"
+                    :owner="selectedLocation.ownerId === user?._id ? user : null"
                     @updated="shareListKey++"
                   />
                 </div>
