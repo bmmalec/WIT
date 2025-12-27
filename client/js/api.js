@@ -412,10 +412,39 @@ const shares = {
   },
 };
 
+// Identify API (AI-powered identification)
+const identify = {
+  /**
+   * Identify item from image using AI
+   * @param {string} image - Base64 encoded image or data URL
+   * @param {string} mediaType - Image MIME type
+   */
+  image(image, mediaType = 'image/jpeg') {
+    return API.post('/identify/image', { image, mediaType });
+  },
+
+  /**
+   * Get quick description of item from image
+   * @param {string} image - Base64 encoded image or data URL
+   * @param {string} mediaType - Image MIME type
+   */
+  describe(image, mediaType = 'image/jpeg') {
+    return API.post('/identify/describe', { image, mediaType });
+  },
+
+  /**
+   * Lookup product by UPC/barcode
+   * @param {string} code - UPC/EAN barcode
+   */
+  upc(code) {
+    return API.post('/identify/upc', { code });
+  },
+};
+
 // Export for ES modules
-export { API, ApiError, auth, locations, items, categories, shares };
+export { API, ApiError, auth, locations, items, categories, shares, identify };
 
 // Also expose globally for non-module scripts
 window.API = API;
 window.ApiError = ApiError;
-window.api = { auth, locations, items, categories, shares };
+window.api = { auth, locations, items, categories, shares, identify };

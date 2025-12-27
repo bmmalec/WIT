@@ -106,6 +106,7 @@ app.use('/api', require('./routes/shares')); // Shares routes (includes /shares 
 app.use('/api/items', require('./routes/items'));
 app.use('/api/items', require('./routes/images')); // Image upload routes (/api/items/:itemId/images)
 app.use('/api/categories', require('./routes/categories'));
+app.use('/api/identify', require('./routes/identify')); // AI identification routes
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

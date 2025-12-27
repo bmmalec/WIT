@@ -18,6 +18,7 @@ import EditProfilePage from './pages/EditProfilePage.js';
 import ChangePasswordPage from './pages/ChangePasswordPage.js';
 import SettingsPage from './pages/SettingsPage.js';
 import AcceptInvitePage from './pages/AcceptInvitePage.js';
+import ScanPage from './pages/ScanPage.js';
 
 const { createApp, ref, onMounted, watch } = Vue;
 
@@ -113,6 +114,11 @@ const routes = [
   {
     path: '/settings',
     component: SettingsPage,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/scan',
+    component: ScanPage,
     meta: { requiresAuth: true },
   },
   {
