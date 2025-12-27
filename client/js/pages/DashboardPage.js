@@ -9,6 +9,8 @@ import LocationTree from '../components/LocationTree.js';
 import Breadcrumb from '../components/Breadcrumb.js';
 import ShareDialog from '../components/ShareDialog.js';
 import ShareList from '../components/ShareList.js';
+import ItemCard from '../components/ItemCard.js';
+import ItemForm from '../components/ItemForm.js';
 
 const { ref, computed, onMounted, watch } = Vue;
 
@@ -22,6 +24,8 @@ export default {
     Breadcrumb,
     ShareDialog,
     ShareList,
+    ItemCard,
+    ItemForm,
   },
 
   setup() {
@@ -59,6 +63,16 @@ export default {
     const loadingInvites = ref(false);
     const processingInvite = ref(null);
     const leavingShare = ref(null);
+
+    // Items state
+    const items = ref([]);
+    const loadingItems = ref(false);
+    const showItemForm = ref(false);
+    const editingItem = ref(null);
+    const categories = ref([]);
+    const showDeleteItemConfirm = ref(false);
+    const deletingItem = ref(null);
+    const deletingItemLoading = ref(false);
 
     // Fetch locations (both flat and tree)
     const fetchLocations = async () => {
@@ -170,6 +184,108 @@ export default {
       }
     };
 
+    // Fetch categories
+    const fetchCategories = async () => {
+      try {
+        const response = await window.api.categories.getAll();
+        categories.value = response.data.categories || [];
+      } catch (err) {
+        console.error('Failed to fetch categories:', err);
+      }
+    };
+
+    // Fetch items for selected location
+    const fetchItems = async (locationId) => {
+      if (!locationId) return;
+
+      loadingItems.value = true;
+      try {
+        const response = await window.api.items.getByLocation(locationId);
+        items.value = response.data.items || [];
+      } catch (err) {
+        console.error('Failed to fetch items:', err);
+        items.value = [];
+      } finally {
+        loadingItems.value = false;
+      }
+    };
+
+    // Open item form for creating
+    const openItemForm = (location = null) => {
+      editingItem.value = null;
+      if (location) {
+        selectedLocation.value = location;
+        showItemForm.value = true;
+      } else if (selectedLocation.value) {
+        // Use already selected location
+        showItemForm.value = true;
+      } else if (locations.value.length > 0) {
+        // No location selected - show message
+        window.store?.info('Please select a location first to add an item');
+      }
+    };
+
+    // Open item form for editing
+    const openEditItemForm = (item) => {
+      editingItem.value = item;
+      showItemForm.value = true;
+    };
+
+    // Close item form
+    const closeItemForm = () => {
+      showItemForm.value = false;
+      editingItem.value = null;
+    };
+
+    // Handle item form success
+    const handleItemFormSuccess = async () => {
+      closeItemForm();
+      if (selectedLocation.value) {
+        await fetchItems(selectedLocation.value._id);
+      }
+      window.store?.success(editingItem.value ? 'Item updated' : 'Item created');
+    };
+
+    // Open delete item confirmation
+    const openDeleteItemConfirm = (item) => {
+      deletingItem.value = item;
+      showDeleteItemConfirm.value = true;
+    };
+
+    // Close delete item confirmation
+    const closeDeleteItemConfirm = () => {
+      showDeleteItemConfirm.value = false;
+      deletingItem.value = null;
+    };
+
+    // Handle item delete
+    const handleDeleteItem = async () => {
+      if (!deletingItem.value) return;
+
+      deletingItemLoading.value = true;
+      try {
+        await window.api.items.delete(deletingItem.value._id);
+        window.store?.success('Item deleted');
+        closeDeleteItemConfirm();
+        if (selectedLocation.value) {
+          await fetchItems(selectedLocation.value._id);
+        }
+      } catch (err) {
+        console.error('Failed to delete item:', err);
+        window.store?.error(err.message || 'Failed to delete item');
+      } finally {
+        deletingItemLoading.value = false;
+      }
+    };
+
+    // Handle item quantity adjustment
+    const handleQuantityAdjust = async ({ item, delta }) => {
+      // Refresh items to get updated quantity
+      if (selectedLocation.value) {
+        await fetchItems(selectedLocation.value._id);
+      }
+    };
+
     // Handle logout
     const handleLogout = async () => {
       try {
@@ -228,10 +344,15 @@ export default {
       selectedLocation.value = location;
       showDetailPanel.value = true;
       loadingDetail.value = true;
+      items.value = []; // Clear items while loading
 
       try {
-        const response = await window.api.locations.getBreadcrumb(location._id);
-        selectedAncestors.value = response.data.ancestors || [];
+        // Fetch breadcrumb and items in parallel
+        const [breadcrumbRes] = await Promise.all([
+          window.api.locations.getBreadcrumb(location._id),
+          fetchItems(location._id),
+        ]);
+        selectedAncestors.value = breadcrumbRes.data.ancestors || [];
       } catch (err) {
         console.error('Failed to fetch breadcrumb:', err);
         selectedAncestors.value = [];
@@ -245,6 +366,7 @@ export default {
       showDetailPanel.value = false;
       selectedLocation.value = null;
       selectedAncestors.value = [];
+      items.value = [];
     };
 
     // Handle breadcrumb navigation
@@ -322,6 +444,7 @@ export default {
     onMounted(() => {
       fetchLocations();
       fetchInvitesAndShares();
+      fetchCategories();
     });
 
     return {
@@ -348,6 +471,15 @@ export default {
       sharedLocations,
       loadingInvites,
       processingInvite,
+      // Items
+      items,
+      loadingItems,
+      showItemForm,
+      editingItem,
+      categories,
+      showDeleteItemConfirm,
+      deletingItem,
+      deletingItemLoading,
       handleLogout,
       goToProfile,
       openCreateModal,
@@ -373,6 +505,16 @@ export default {
       getPermissionLabel,
       leaveShare,
       leavingShare,
+      // Item methods
+      openItemForm,
+      openEditItemForm,
+      closeItemForm,
+      handleItemFormSuccess,
+      openDeleteItemConfirm,
+      closeDeleteItemConfirm,
+      handleDeleteItem,
+      handleQuantityAdjust,
+      fetchItems,
     };
   },
 
@@ -524,11 +666,17 @@ export default {
             <p class="text-sm text-gray-600">Create a new storage location like a room, cabinet, or box.</p>
           </div>
 
-          <div class="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow cursor-pointer opacity-50">
+          <div
+            @click="locations.length > 0 ? openItemForm() : null"
+            :class="[
+              'bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow border-2 border-dashed border-gray-200 hover:border-blue-400',
+              locations.length > 0 ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'
+            ]"
+          >
             <div class="text-3xl mb-3">📦</div>
             <h3 class="font-semibold text-gray-900 mb-1">Add Item</h3>
             <p class="text-sm text-gray-600">Add items to your inventory with photos or barcodes.</p>
-            <p class="text-xs text-gray-400 mt-2">Coming soon</p>
+            <p v-if="locations.length === 0" class="text-xs text-gray-400 mt-2">Create a location first</p>
           </div>
 
           <div class="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow cursor-pointer opacity-50">
@@ -820,8 +968,55 @@ export default {
                     <p class="text-sm text-gray-500">Sub-locations</p>
                   </div>
                   <div class="bg-gray-50 rounded-lg p-3">
-                    <p class="text-2xl font-semibold text-gray-900">{{ selectedLocation.itemCount || 0 }}</p>
+                    <p class="text-2xl font-semibold text-gray-900">{{ items.length }}</p>
                     <p class="text-sm text-gray-500">Items</p>
+                  </div>
+                </div>
+
+                <!-- Items Section -->
+                <div class="mb-6">
+                  <div class="flex items-center justify-between mb-3">
+                    <h4 class="text-sm font-medium text-gray-700">Items in this location</h4>
+                    <button
+                      @click="openItemForm(selectedLocation)"
+                      class="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                      </svg>
+                      Add Item
+                    </button>
+                  </div>
+
+                  <!-- Loading State -->
+                  <div v-if="loadingItems" class="flex justify-center py-6">
+                    <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                  </div>
+
+                  <!-- Empty State -->
+                  <div v-else-if="items.length === 0" class="text-center py-6 text-gray-500">
+                    <div class="text-3xl mb-2">📦</div>
+                    <p class="text-sm">No items in this location</p>
+                    <button
+                      @click="openItemForm(selectedLocation)"
+                      class="mt-2 text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      Add your first item
+                    </button>
+                  </div>
+
+                  <!-- Items Grid -->
+                  <div v-else class="grid grid-cols-2 gap-3">
+                    <ItemCard
+                      v-for="item in items"
+                      :key="item._id"
+                      :item="item"
+                      :can-edit="true"
+                      @click="openEditItemForm(item)"
+                      @edit="openEditItemForm(item)"
+                      @delete="openDeleteItemConfirm(item)"
+                      @adjust-quantity="handleQuantityAdjust"
+                    />
                   </div>
                 </div>
 
@@ -924,6 +1119,69 @@ export default {
         @close="closeShareDialog"
         @invited="handleShareInvited"
       />
+
+      <!-- Item Form Modal -->
+      <ItemForm
+        v-if="showItemForm && selectedLocation"
+        :show="true"
+        :item="editingItem"
+        :location-id="selectedLocation._id"
+        @close="closeItemForm"
+        @saved="handleItemFormSuccess"
+      />
+
+      <!-- Delete Item Confirmation Modal -->
+      <div
+        v-if="showDeleteItemConfirm"
+        class="fixed inset-0 z-50 overflow-y-auto"
+      >
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+          <!-- Backdrop -->
+          <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeDeleteItemConfirm"></div>
+
+          <!-- Modal Content -->
+          <div class="relative bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:max-w-md sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6">
+              <div class="flex items-start">
+                <div class="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:h-10 sm:w-10">
+                  <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                  </svg>
+                </div>
+                <div class="ml-4 flex-1">
+                  <h3 class="text-lg font-medium text-gray-900">Delete Item</h3>
+                  <p class="mt-2 text-sm text-gray-500">
+                    Are you sure you want to delete "{{ deletingItem?.name }}"? This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-2">
+              <button
+                @click="handleDeleteItem"
+                :disabled="deletingItemLoading"
+                class="w-full sm:w-auto btn-danger flex justify-center items-center"
+              >
+                <span v-if="deletingItemLoading" class="flex items-center">
+                  <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Deleting...
+                </span>
+                <span v-else>Delete</span>
+              </button>
+              <button
+                @click="closeDeleteItemConfirm"
+                :disabled="deletingItemLoading"
+                class="w-full sm:w-auto btn-secondary mt-2 sm:mt-0"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   `,
 };

@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { getTypeValues } = require('../seeds/locationTypes');
 
 const locationSchema = new mongoose.Schema(
   {
@@ -22,31 +23,7 @@ const locationSchema = new mongoose.Schema(
     type: {
       type: String,
       required: [true, 'Location type is required'],
-      enum: [
-        'house',
-        'warehouse',
-        'storage_unit',
-        'office',
-        'vehicle',
-        'room',
-        'zone',
-        'container',
-        'garage',
-        'basement',
-        'attic',
-        'kitchen',
-        'bedroom',
-        'bathroom',
-        'workshop',
-        'living_room',
-        'closet',
-        'cabinet',
-        'drawer',
-        'shelf',
-        'box',
-        'bin',
-        'custom',
-      ],
+      enum: getTypeValues(),
     },
     customType: {
       type: String,

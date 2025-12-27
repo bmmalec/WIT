@@ -189,11 +189,14 @@ export default {
       const groups = {
         property: { label: 'Properties', types: [] },
         room: { label: 'Rooms', types: [] },
+        zone: { label: 'Zones', types: [] },
         container: { label: 'Containers', types: [] },
         other: { label: 'Other', types: [] },
       };
       LOCATION_TYPES.forEach(type => {
-        groups[type.category].types.push(type);
+        if (groups[type.category]) {
+          groups[type.category].types.push(type);
+        }
       });
       return groups;
     });
