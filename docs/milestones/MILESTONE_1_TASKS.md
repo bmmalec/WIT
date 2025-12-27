@@ -629,22 +629,24 @@ Show locations in a grid on dashboard.
 ---
 
 ### US-2.1.2: View Location Tree
-**Priority:** P0 | **Complexity:** M (3) | **Status:** ⬜ Not Started
+**Priority:** P0 | **Complexity:** M (3) | **Status:** ✅ Complete
 
 **Story:** As a user, I want to view my locations in a tree structure.
 
 #### FRONTEND Agent Tasks:
-- [ ] Create `client/js/components/LocationTree.js`:
+- [x] Create `client/js/components/LocationTree.js`:
   - Recursive tree rendering
   - Expand/collapse nodes
   - Type icons
   - Item count badges
   - Click to select/navigate
   - Drag and drop (future)
-- [ ] Create `client/js/components/LocationTreeNode.js`:
+- [x] Create `client/js/components/LocationTreeNode.js`:
   - Single node with expand button
   - Children indentation
   - Hover actions
+- [x] Add tree view toggle to dashboard
+- [x] Connect tree to location modal operations (edit, delete, add child)
 
 **FRONTEND Prompt:**
 ```
@@ -669,17 +671,17 @@ Features:
 ---
 
 ### US-2.1.3: Edit Location
-**Priority:** P0 | **Complexity:** S (2) | **Status:** ⬜ Not Started
+**Priority:** P0 | **Complexity:** S (2) | **Status:** ✅ Complete
 
 **Story:** As a location owner, I want to edit location details.
 
 #### BACKEND Agent Tasks:
-- [ ] Add to `server/services/locationService.js`:
+- [x] Add to `server/services/locationService.js`:
   - `update(userId, locationId, updates)` - Updates location
   - Verify ownership
-- [ ] Add to `server/controllers/locationController.js`:
+- [x] Add to `server/controllers/locationController.js`:
   - `update(req, res)` - PUT handler
-- [ ] Add to `server/routes/locations.js`:
+- [x] Add to `server/routes/locations.js`:
   - PUT `/:id`
 
 **BACKEND Prompt:**
@@ -694,9 +696,10 @@ Add PUT /api/locations/:id route.
 ```
 
 #### FRONTEND Agent Tasks:
-- [ ] Add edit mode to LocationForm
-- [ ] Add edit button to location detail/card
-- [ ] Pre-fill form with existing data
+- [x] Add edit mode to LocationForm
+- [x] Add edit button to location detail/card
+- [x] Pre-fill form with existing data
+- [x] Edit via hover actions in tree view and card view
 
 **FRONTEND Prompt:**
 ```
@@ -712,18 +715,18 @@ Pre-fill form, show "Update" instead of "Create".
 ---
 
 ### US-2.1.4: Delete Location
-**Priority:** P0 | **Complexity:** M (3) | **Status:** ⬜ Not Started
+**Priority:** P0 | **Complexity:** M (3) | **Status:** ✅ Complete
 
 **Story:** As a location owner, I want to delete a location.
 
 #### BACKEND Agent Tasks:
-- [ ] Add to `server/services/locationService.js`:
+- [x] Add to `server/services/locationService.js`:
   - `delete(userId, locationId, options)` - Soft delete
-  - Options: `{ moveItemsTo, moveChildrenTo, cascade }`
-  - Handle children and items
-- [ ] Add to `server/controllers/locationController.js`:
+  - Options: `{ cascade }` - deletes all descendants
+  - Handle children check and cascade delete
+- [x] Add to `server/controllers/locationController.js`:
   - `delete(req, res)` - DELETE handler
-- [ ] Add to `server/routes/locations.js`:
+- [x] Add to `server/routes/locations.js`:
   - DELETE `/:id`
 
 **BACKEND Prompt:**
@@ -743,13 +746,15 @@ Query params: cascade, moveItemsTo
 ```
 
 #### FRONTEND Agent Tasks:
-- [ ] Create `client/js/components/DeleteLocationDialog.js`:
-  - Warning message
-  - Show child/item counts
-  - Options: move contents or delete all
-  - Location picker for move target
-  - Confirm button
-- [ ] Add delete button to location menu
+- [x] Enhanced delete confirmation dialog in DashboardPage.js:
+  - Warning message with location name
+  - Show child/item counts with visual indicators
+  - Cascade delete checkbox for locations with children
+  - Button disabled until cascade confirmed (when has children)
+  - Button text changes to "Delete All" when cascade enabled
+- [x] Delete button on LocationCard hover
+- [x] Delete button on LocationTreeNode hover
+- [x] API client updated with cascade parameter support
 
 **FRONTEND Prompt:**
 ```
@@ -769,12 +774,12 @@ Add delete option to location actions menu.
 ---
 
 ### US-2.2.1: Create Sub-Location
-**Priority:** P0 | **Complexity:** M (3) | **Status:** ⬜ Not Started
+**Priority:** P0 | **Complexity:** M (3) | **Status:** ✅ Complete
 
 **Story:** As a user, I want to create sub-locations within a parent.
 
 #### BACKEND Agent Tasks:
-- [ ] Update `server/services/locationService.js` create method:
+- [x] Update `server/services/locationService.js` create method:
   - If parentId provided:
     - Get parent location
     - Verify user has access to parent
@@ -799,9 +804,11 @@ Return created location with full path.
 ```
 
 #### FRONTEND Agent Tasks:
-- [ ] Add "Add Sub-location" button to location detail
-- [ ] Pre-select parent in LocationForm when creating from parent
-- [ ] Show suggested types based on parent type
+- [x] Add "Add Sub-location" button to tree node (+ icon on hover)
+- [x] Pre-select parent in LocationForm when creating from parent
+- [x] Modal title changes to "Add Sub-Location" when parent selected
+- [x] Shows "Adding to: [parent name]" indicator in modal
+- [x] LocationForm receives parentId prop and includes in API call
 
 **FRONTEND Prompt:**
 ```

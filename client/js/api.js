@@ -75,8 +75,10 @@ const API = {
     return this.request(endpoint, { method: 'PUT', body });
   },
 
-  delete(endpoint) {
-    return this.request(endpoint, { method: 'DELETE' });
+  delete(endpoint, params = {}) {
+    const query = new URLSearchParams(params).toString();
+    const url = query ? `${endpoint}?${query}` : endpoint;
+    return this.request(url, { method: 'DELETE' });
   },
 };
 
@@ -159,8 +161,10 @@ const locations = {
     return API.put(`/locations/${id}`, data);
   },
 
-  delete(id) {
-    return API.delete(`/locations/${id}`);
+  delete(id, options = {}) {
+    const params = {};
+    if (options.cascade) params.cascade = 'true';
+    return API.delete(`/locations/${id}`, params);
   },
 };
 

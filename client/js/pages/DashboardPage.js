@@ -5,6 +5,7 @@
 
 import LocationCard from '../components/LocationCard.js';
 import LocationForm from '../components/LocationForm.js';
+import LocationTree from '../components/LocationTree.js';
 
 const { ref, computed, onMounted } = Vue;
 
@@ -14,36 +15,54 @@ export default {
   components: {
     LocationCard,
     LocationForm,
+    LocationTree,
   },
 
   setup() {
     const user = computed(() => window.store?.state?.user);
     const locations = ref([]);
+    const locationTree = ref([]);
     const loading = ref(true);
     const error = ref(null);
+
+    // View mode: 'grid' or 'tree'
+    const viewMode = ref(window.store?.state?.user?.settings?.defaultView || 'grid');
 
     // Modal state
     const showCreateModal = ref(false);
     const editingLocation = ref(null);
+    const parentLocation = ref(null); // For adding sub-locations
     const showDeleteConfirm = ref(false);
     const deletingLocation = ref(null);
     const deleting = ref(false);
+    const cascadeDelete = ref(false);
 
-    // Fetch locations
+    // Fetch locations (both flat and tree)
     const fetchLocations = async () => {
       loading.value = true;
       error.value = null;
 
       try {
-        const response = await window.api.locations.list();
-        // Filter to only top-level locations for dashboard
-        locations.value = response.data.locations.filter(loc => !loc.parentId);
+        // Fetch both views in parallel
+        const [listResponse, treeResponse] = await Promise.all([
+          window.api.locations.list(),
+          window.api.locations.tree(),
+        ]);
+        // Filter to only top-level locations for grid view
+        locations.value = listResponse.data.locations.filter(loc => !loc.parentId);
+        // Store tree data for tree view
+        locationTree.value = treeResponse.data.tree;
       } catch (err) {
         console.error('Failed to fetch locations:', err);
         error.value = err.message || 'Failed to load locations';
       } finally {
         loading.value = false;
       }
+    };
+
+    // Toggle view mode
+    const toggleViewMode = () => {
+      viewMode.value = viewMode.value === 'grid' ? 'tree' : 'grid';
     };
 
     // Handle logout
@@ -68,12 +87,21 @@ export default {
     // Open create modal
     const openCreateModal = () => {
       editingLocation.value = null;
+      parentLocation.value = null;
+      showCreateModal.value = true;
+    };
+
+    // Open create modal with parent (for sub-locations)
+    const openCreateWithParent = (parent) => {
+      editingLocation.value = null;
+      parentLocation.value = parent;
       showCreateModal.value = true;
     };
 
     // Open edit modal
     const openEditModal = (location) => {
       editingLocation.value = location;
+      parentLocation.value = null;
       showCreateModal.value = true;
     };
 
@@ -81,6 +109,7 @@ export default {
     const closeModal = () => {
       showCreateModal.value = false;
       editingLocation.value = null;
+      parentLocation.value = null;
     };
 
     // Handle form success
@@ -105,23 +134,35 @@ export default {
     const closeDeleteConfirm = () => {
       showDeleteConfirm.value = false;
       deletingLocation.value = null;
+      cascadeDelete.value = false;
     };
 
     // Handle delete
     const handleDelete = async () => {
       if (!deletingLocation.value) return;
 
+      // If has children and cascade not enabled, show error
+      if (deletingLocation.value.childCount > 0 && !cascadeDelete.value) {
+        window.store?.error('Please enable "Delete all sub-locations" to delete this location.');
+        return;
+      }
+
       deleting.value = true;
 
       try {
-        await window.api.locations.delete(deletingLocation.value._id);
-        window.store?.success('Location deleted');
+        await window.api.locations.delete(deletingLocation.value._id, {
+          cascade: cascadeDelete.value,
+        });
+        const message = cascadeDelete.value
+          ? 'Location and all sub-locations deleted'
+          : 'Location deleted';
+        window.store?.success(message);
         closeDeleteConfirm();
         fetchLocations();
       } catch (err) {
         console.error('Delete error:', err);
         if (err.code === 'HAS_CHILDREN') {
-          window.store?.error('Location has sub-locations. Delete them first or use cascade delete.');
+          window.store?.error('Location has sub-locations. Enable cascade delete to remove them.');
         } else {
           window.store?.error(err.message || 'Failed to delete location');
         }
@@ -135,16 +176,21 @@ export default {
     return {
       user,
       locations,
+      locationTree,
       loading,
       error,
+      viewMode,
       showCreateModal,
       editingLocation,
+      parentLocation,
       showDeleteConfirm,
       deletingLocation,
       deleting,
+      cascadeDelete,
       handleLogout,
       goToProfile,
       openCreateModal,
+      openCreateWithParent,
       openEditModal,
       closeModal,
       handleFormSuccess,
@@ -153,6 +199,7 @@ export default {
       closeDeleteConfirm,
       handleDelete,
       fetchLocations,
+      toggleViewMode,
     };
   },
 
@@ -226,9 +273,42 @@ export default {
         <div class="bg-white rounded-lg shadow-sm p-6">
           <div class="flex justify-between items-center mb-6">
             <h3 class="text-lg font-semibold text-gray-900">My Locations</h3>
-            <button @click="openCreateModal" class="btn-primary text-sm">
-              + Add Location
-            </button>
+            <div class="flex items-center gap-3">
+              <!-- View Toggle -->
+              <div class="flex items-center bg-gray-100 rounded-lg p-1">
+                <button
+                  @click="viewMode = 'grid'"
+                  :class="[
+                    'p-1.5 rounded transition-colors',
+                    viewMode === 'grid'
+                      ? 'bg-white shadow-sm text-blue-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  ]"
+                  title="Grid view"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                  </svg>
+                </button>
+                <button
+                  @click="viewMode = 'tree'"
+                  :class="[
+                    'p-1.5 rounded transition-colors',
+                    viewMode === 'tree'
+                      ? 'bg-white shadow-sm text-blue-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  ]"
+                  title="Tree view"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                  </svg>
+                </button>
+              </div>
+              <button @click="openCreateModal" class="btn-primary text-sm">
+                + Add Location
+              </button>
+            </div>
           </div>
 
           <!-- Loading State -->
@@ -243,7 +323,7 @@ export default {
           </div>
 
           <!-- Empty State -->
-          <div v-else-if="locations.length === 0" class="text-center py-12 text-gray-500">
+          <div v-else-if="locationTree.length === 0" class="text-center py-12 text-gray-500">
             <div class="text-4xl mb-4">🏠</div>
             <p class="mb-2">No locations yet</p>
             <p class="text-sm mb-4">Create your first location to start organizing your inventory.</p>
@@ -252,7 +332,20 @@ export default {
             </button>
           </div>
 
-          <!-- Locations Grid -->
+          <!-- Tree View -->
+          <div v-else-if="viewMode === 'tree'">
+            <LocationTree
+              :tree="locationTree"
+              :loading="loading"
+              @select="handleLocationClick"
+              @edit="openEditModal"
+              @delete="openDeleteConfirm"
+              @add-child="openCreateWithParent"
+              @refresh="fetchLocations"
+            />
+          </div>
+
+          <!-- Grid View -->
           <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <LocationCard
               v-for="location in locations"
@@ -281,7 +374,7 @@ export default {
             <div class="bg-white px-4 pt-5 pb-4 sm:p-6">
               <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-semibold text-gray-900">
-                  {{ editingLocation ? 'Edit Location' : 'Create Location' }}
+                  {{ editingLocation ? 'Edit Location' : (parentLocation ? 'Add Sub-Location' : 'Create Location') }}
                 </h3>
                 <button
                   @click="closeModal"
@@ -293,8 +386,15 @@ export default {
                 </button>
               </div>
 
+              <!-- Parent location indicator -->
+              <div v-if="parentLocation && !editingLocation" class="mb-4 p-3 bg-blue-50 rounded-lg text-sm">
+                <span class="text-gray-600">Adding to: </span>
+                <span class="font-medium text-blue-700">{{ parentLocation.name }}</span>
+              </div>
+
               <LocationForm
                 :location="editingLocation"
+                :parent-id="parentLocation?._id"
                 @success="handleFormSuccess"
                 @cancel="closeModal"
               />
@@ -321,13 +421,32 @@ export default {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                   </svg>
                 </div>
-                <div class="ml-4">
+                <div class="ml-4 flex-1">
                   <h3 class="text-lg font-medium text-gray-900">Delete Location</h3>
                   <p class="mt-2 text-sm text-gray-500">
                     Are you sure you want to delete "{{ deletingLocation?.name }}"? This action cannot be undone.
                   </p>
-                  <p v-if="deletingLocation?.childCount > 0" class="mt-2 text-sm text-orange-600">
-                    This location has {{ deletingLocation.childCount }} sub-location(s). You'll need to delete them first.
+
+                  <!-- Sub-locations warning and cascade option -->
+                  <div v-if="deletingLocation?.childCount > 0" class="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                    <p class="text-sm text-orange-800 font-medium">
+                      This location has {{ deletingLocation.childCount }} sub-location(s).
+                    </p>
+                    <label class="mt-2 flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        v-model="cascadeDelete"
+                        class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                      />
+                      <span class="ml-2 text-sm text-orange-700">
+                        Delete all sub-locations too
+                      </span>
+                    </label>
+                  </div>
+
+                  <!-- Items warning -->
+                  <p v-if="deletingLocation?.itemCount > 0" class="mt-2 text-sm text-orange-600">
+                    This location contains {{ deletingLocation.itemCount }} item(s) that will also be affected.
                   </p>
                 </div>
               </div>
@@ -335,8 +454,11 @@ export default {
             <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-2">
               <button
                 @click="handleDelete"
-                :disabled="deleting"
-                class="w-full sm:w-auto btn-danger flex justify-center items-center"
+                :disabled="deleting || (deletingLocation?.childCount > 0 && !cascadeDelete)"
+                :class="[
+                  'w-full sm:w-auto flex justify-center items-center',
+                  (deletingLocation?.childCount > 0 && !cascadeDelete) ? 'btn-secondary cursor-not-allowed' : 'btn-danger'
+                ]"
               >
                 <span v-if="deleting" class="flex items-center">
                   <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
@@ -345,7 +467,7 @@ export default {
                   </svg>
                   Deleting...
                 </span>
-                <span v-else>Delete</span>
+                <span v-else>{{ cascadeDelete ? 'Delete All' : 'Delete' }}</span>
               </button>
               <button
                 @click="closeDeleteConfirm"
