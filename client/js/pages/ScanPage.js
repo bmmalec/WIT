@@ -46,6 +46,8 @@ export default {
     const loadingLocations = ref(false);
     const lookingUpBarcode = ref(false);
     const saving = ref(false);
+    const manualBarcodeInput = ref('');
+    const showManualEntry = ref(false);
 
     // Check if user is authenticated
     const isAuthenticated = computed(() => {
@@ -93,13 +95,13 @@ export default {
       try {
         // Try to lookup UPC in database
         const response = await window.api.identify.upc(data.code);
+        const product = response.data;
 
-        if (response.data.found) {
+        if (product.found) {
           // Product found - create a guess-like structure
-          const product = response.data.product;
           selectedGuess.value = {
             guess: {
-              name: product.name,
+              name: product.name || `Product ${data.code}`,
               brand: product.brand,
               description: product.description,
               category: product.category || 'other',
@@ -121,6 +123,39 @@ export default {
       } finally {
         lookingUpBarcode.value = false;
       }
+    };
+
+    // Handle manual barcode submission
+    const handleManualBarcodeSubmit = async () => {
+      const code = manualBarcodeInput.value.trim().replace(/[\s-]/g, '');
+
+      if (!code) {
+        error.value = 'Please enter a barcode';
+        return;
+      }
+
+      // Validate barcode format (8-14 digits)
+      if (!/^\d{8,14}$/.test(code)) {
+        error.value = 'Invalid barcode format. Must be 8-14 digits.';
+        return;
+      }
+
+      // Use the existing barcode handler
+      await handleBarcodeDetected({
+        code,
+        format: 'manual',
+        timestamp: new Date().toISOString(),
+      });
+
+      // Clear input and hide manual entry
+      manualBarcodeInput.value = '';
+      showManualEntry.value = false;
+    };
+
+    // Toggle manual entry visibility
+    const toggleManualEntry = () => {
+      showManualEntry.value = !showManualEntry.value;
+      error.value = '';
     };
 
     // Handle guess selection (AI mode)
@@ -288,10 +323,14 @@ export default {
       loadingLocations,
       lookingUpBarcode,
       saving,
+      manualBarcodeInput,
+      showManualEntry,
       isAuthenticated,
       switchMode,
       handleCapture,
       handleBarcodeDetected,
+      handleManualBarcodeSubmit,
+      toggleManualEntry,
       handleSelectGuess,
       handleBarcodeManualEntry,
       handleBarcodeToAI,
@@ -398,15 +437,61 @@ export default {
 
         <!-- Stage: Capture (Barcode Mode) -->
         <div v-if="stage === STAGES.CAPTURE && mode === MODES.BARCODE" class="p-4">
-          <BarcodeScanner
-            :active="true"
-            @detected="handleBarcodeDetected"
-            @close="handleClose"
-            @error="(msg) => error = msg"
-          />
-          <p class="text-center text-sm text-gray-500 mt-4">
-            Position barcode within the frame
-          </p>
+          <!-- Barcode lookup loading overlay -->
+          <div v-if="lookingUpBarcode" class="bg-white rounded-lg shadow-sm p-8 text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p class="text-gray-600">Looking up product...</p>
+            <p class="text-2xl font-mono text-gray-700 mt-2">{{ barcodeResult?.code }}</p>
+          </div>
+          <template v-else>
+            <BarcodeScanner
+              :active="!showManualEntry"
+              @detected="handleBarcodeDetected"
+              @close="handleClose"
+              @error="(msg) => error = msg"
+            />
+            <p class="text-center text-sm text-gray-500 mt-4">
+              Position barcode within the frame
+            </p>
+
+            <!-- Manual entry toggle -->
+            <div class="mt-4 text-center">
+              <button
+                @click="toggleManualEntry"
+                class="text-sm text-blue-600 hover:text-blue-700"
+              >
+                {{ showManualEntry ? 'Use camera instead' : "Can't scan? Enter barcode manually" }}
+              </button>
+            </div>
+
+            <!-- Manual barcode entry form -->
+            <div v-if="showManualEntry" class="mt-4 bg-white rounded-lg shadow-sm p-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Enter barcode number
+              </label>
+              <div class="flex gap-2">
+                <input
+                  v-model="manualBarcodeInput"
+                  type="text"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="e.g., 012345678901"
+                  class="input flex-1 font-mono"
+                  @keydown.enter.prevent="handleManualBarcodeSubmit"
+                />
+                <button
+                  @click="handleManualBarcodeSubmit"
+                  :disabled="!manualBarcodeInput.trim()"
+                  class="btn-primary px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Lookup
+                </button>
+              </div>
+              <p class="text-xs text-gray-500 mt-2">
+                Enter 8-14 digit UPC, EAN, or other barcode number
+              </p>
+            </div>
+          </template>
         </div>
 
         <!-- Stage: Identifying (AI loading) -->

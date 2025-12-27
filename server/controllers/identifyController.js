@@ -4,6 +4,7 @@
  */
 
 const aiService = require('../services/aiService');
+const upcService = require('../services/upcService');
 
 /**
  * Identify item from image
@@ -150,7 +151,57 @@ const describeImage = async (req, res, next) => {
   }
 };
 
+/**
+ * Lookup product by UPC/barcode
+ * POST /api/identify/upc
+ */
+const lookupUpc = async (req, res, next) => {
+  try {
+    const { code } = req.body;
+
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_CODE',
+          message: 'Barcode is required',
+        },
+      });
+    }
+
+    // Validate code format (only digits, 8-14 characters)
+    const normalizedCode = code.replace(/[\s-]/g, '');
+    if (!/^\d{8,14}$/.test(normalizedCode)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_CODE',
+          message: 'Invalid barcode format. Must be 8-14 digits.',
+        },
+      });
+    }
+
+    const result = await upcService.lookupByCode(normalizedCode);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error('UPC lookup error:', error);
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'LOOKUP_FAILED',
+        message: error.message || 'Failed to lookup barcode',
+      },
+    });
+  }
+};
+
 module.exports = {
   identifyImage,
   describeImage,
+  lookupUpc,
 };

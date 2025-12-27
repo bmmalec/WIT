@@ -89,7 +89,36 @@ export default {
         purchaseDate: '',
         vendor: '',
       },
+      perishable: {
+        isPerishable: false,
+        expirationDate: '',
+        extendedExpirationDate: '',
+      },
       notes: '',
+    });
+
+    // Computed: Days until expiration
+    const daysUntilExpiration = computed(() => {
+      if (!form.perishable.isPerishable || !form.perishable.expirationDate) {
+        return null;
+      }
+      const expDate = new Date(form.perishable.expirationDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      expDate.setHours(0, 0, 0, 0);
+      const diffTime = expDate - today;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays;
+    });
+
+    // Expiration status class
+    const expirationStatusClass = computed(() => {
+      const days = daysUntilExpiration.value;
+      if (days === null) return '';
+      if (days < 0) return 'text-red-600 bg-red-50';
+      if (days <= 7) return 'text-orange-600 bg-orange-50';
+      if (days <= 30) return 'text-yellow-600 bg-yellow-50';
+      return 'text-green-600 bg-green-50';
     });
 
     // Tag input
@@ -155,6 +184,11 @@ export default {
         purchaseDate: item.value?.purchaseDate ? item.value.purchaseDate.split('T')[0] : '',
         vendor: item.value?.vendor || '',
       };
+      form.perishable = {
+        isPerishable: item.perishable?.isPerishable || false,
+        expirationDate: item.perishable?.expirationDate ? item.perishable.expirationDate.split('T')[0] : '',
+        extendedExpirationDate: item.perishable?.extendedExpirationDate ? item.perishable.extendedExpirationDate.split('T')[0] : '',
+      };
       form.notes = item.notes || '';
       images.value = [...(item.images || [])];
     };
@@ -174,6 +208,7 @@ export default {
       form.alternateNames = [];
       form.quantity = { value: 1, unit: 'each', minAlert: null };
       form.value = { purchasePrice: null, currentValue: null, currency: 'USD', purchaseDate: '', vendor: '' };
+      form.perishable = { isPerishable: false, expirationDate: '', extendedExpirationDate: '' };
       form.notes = '';
       tagInput.value = '';
       alternateNameInput.value = '';
@@ -288,6 +323,21 @@ export default {
           };
         }
 
+        // Add perishable info if item is perishable
+        if (form.perishable.isPerishable) {
+          data.perishable = {
+            isPerishable: true,
+            expirationDate: form.perishable.expirationDate || undefined,
+            extendedExpirationDate: form.perishable.extendedExpirationDate || undefined,
+          };
+        } else {
+          data.perishable = {
+            isPerishable: false,
+            expirationDate: undefined,
+            extendedExpirationDate: undefined,
+          };
+        }
+
         let response;
         if (isEditing.value) {
           response = await window.api.items.update(props.item._id, data);
@@ -327,6 +377,8 @@ export default {
       QUANTITY_UNITS,
       images,
       imageUploadRef,
+      daysUntilExpiration,
+      expirationStatusClass,
       addTag,
       removeTag,
       addAlternateName,
@@ -494,6 +546,57 @@ export default {
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Size</label>
                 <input v-model="form.size" type="text" class="input" placeholder="e.g., Large, 10mm" />
+              </div>
+            </div>
+
+            <!-- Expiration -->
+            <div class="border border-gray-200 rounded-lg p-4">
+              <div class="flex items-center gap-3 mb-3">
+                <input
+                  type="checkbox"
+                  id="isPerishable"
+                  v-model="form.perishable.isPerishable"
+                  class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                />
+                <label for="isPerishable" class="text-sm font-medium text-gray-700">
+                  This item has an expiration date
+                </label>
+              </div>
+
+              <div v-if="form.perishable.isPerishable" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Printed Expiration Date</label>
+                    <input
+                      v-model="form.perishable.expirationDate"
+                      type="date"
+                      class="input"
+                    />
+                    <p class="text-xs text-gray-500 mt-1">Date printed on package</p>
+                  </div>
+                  <div v-if="daysUntilExpiration !== null" class="flex items-end pb-5">
+                    <div :class="['px-3 py-2 rounded-lg text-sm font-medium', expirationStatusClass]">
+                      <span v-if="daysUntilExpiration < 0">
+                        Expired {{ Math.abs(daysUntilExpiration) }} day{{ Math.abs(daysUntilExpiration) !== 1 ? 's' : '' }} ago
+                      </span>
+                      <span v-else-if="daysUntilExpiration === 0">
+                        Expires today
+                      </span>
+                      <span v-else>
+                        {{ daysUntilExpiration }} day{{ daysUntilExpiration !== 1 ? 's' : '' }} until expiration
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Personal "Use By" Date</label>
+                  <input
+                    v-model="form.perishable.extendedExpirationDate"
+                    type="date"
+                    class="input max-w-xs"
+                  />
+                  <p class="text-xs text-gray-500 mt-1">When you're comfortable using this item (optional)</p>
+                </div>
               </div>
             </div>
 

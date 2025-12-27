@@ -39,4 +39,20 @@ router.post('/image', imageValidation, validate, identifyController.identifyImag
  */
 router.post('/describe', imageValidation, validate, identifyController.describeImage);
 
+// UPC validation rules
+const upcValidation = [
+  body('code')
+    .notEmpty()
+    .withMessage('Barcode is required')
+    .isString()
+    .withMessage('Barcode must be a string'),
+];
+
+/**
+ * @route   POST /api/identify/upc
+ * @desc    Lookup product by UPC/barcode
+ * @access  Private
+ */
+router.post('/upc', upcValidation, validate, identifyController.lookupUpc);
+
 module.exports = router;

@@ -173,7 +173,12 @@ const itemSchema = new mongoose.Schema(
         type: Boolean,
         default: false,
       },
+      // Printed expiration date on package
       expirationDate: {
+        type: Date,
+      },
+      // User's extended "use by" date (when they're comfortable using it)
+      extendedExpirationDate: {
         type: Date,
       },
       batchNumber: {
