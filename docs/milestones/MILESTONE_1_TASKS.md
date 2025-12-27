@@ -289,17 +289,17 @@ On click: call POST /api/auth/logout, clear app state, redirect to /login.
 ---
 
 ### US-1.3.1: View Profile
-**Priority:** P1 | **Complexity:** S (2) | **Status:** ⬜ Not Started
+**Priority:** P1 | **Complexity:** S (2) | **Status:** ✅ Complete
 
 **Story:** As a user, I want to view my profile.
 
 #### BACKEND Agent Tasks:
-- [ ] Create `server/middleware/auth.js`:
+- [x] Create `server/middleware/auth.js`:
   - `protect` - Verifies JWT, attaches user to req
   - `optionalAuth` - Attaches user if token exists, continues if not
-- [ ] Add to `server/controllers/authController.js`:
+- [x] Add to `server/controllers/authController.js`:
   - `getMe(req, res)` - Returns current user
-- [ ] Add to `server/routes/auth.js`:
+- [x] Add to `server/routes/auth.js`:
   - GET `/me` (protected)
 
 **BACKEND Prompt:**
@@ -319,7 +319,7 @@ Add route: GET /api/auth/me (protected)
 ```
 
 #### FRONTEND Agent Tasks:
-- [ ] Create `client/js/pages/ProfilePage.js`:
+- [x] Create `client/js/pages/ProfilePage.js`:
   - Display name, email, avatar
   - Show subscription tier
   - Show account creation date
@@ -340,16 +340,16 @@ Create client/js/pages/ProfilePage.js:
 ---
 
 ### US-1.3.2: Edit Profile
-**Priority:** P1 | **Complexity:** S (2) | **Status:** ⬜ Not Started
+**Priority:** P1 | **Complexity:** S (2) | **Status:** ✅ Complete
 
 **Story:** As a user, I want to edit my profile.
 
 #### BACKEND Agent Tasks:
-- [ ] Add to `server/services/authService.js`:
+- [x] Add to `server/services/authService.js`:
   - `updateProfile(userId, updates)` - Updates name, avatar
-- [ ] Add to `server/controllers/authController.js`:
+- [x] Add to `server/controllers/authController.js`:
   - `updateMe(req, res)` - Handles PUT /api/auth/me
-- [ ] Add to `server/routes/auth.js`:
+- [x] Add to `server/routes/auth.js`:
   - PUT `/me` (protected)
 
 **BACKEND Prompt:**
@@ -366,11 +366,11 @@ Only allow updating name and avatar.
 ```
 
 #### FRONTEND Agent Tasks:
-- [ ] Create `client/js/components/ProfileForm.js`:
+- [x] Create `client/js/components/ProfileForm.js`:
   - Edit name
   - Upload/change avatar
   - Save button
-- [ ] Add edit mode to ProfilePage
+- [x] Add edit mode to ProfilePage
 
 **FRONTEND Prompt:**
 ```
@@ -389,16 +389,16 @@ Integrate with ProfilePage.
 ---
 
 ### US-1.3.3: Change Password
-**Priority:** P1 | **Complexity:** S (2) | **Status:** ⬜ Not Started
+**Priority:** P1 | **Complexity:** S (2) | **Status:** ✅ Complete
 
 **Story:** As a user, I want to change my password.
 
 #### BACKEND Agent Tasks:
-- [ ] Add to `server/services/authService.js`:
+- [x] Add to `server/services/authService.js`:
   - `changePassword(userId, currentPassword, newPassword)` - Validates current, updates
-- [ ] Add to `server/controllers/authController.js`:
+- [x] Add to `server/controllers/authController.js`:
   - `changePassword(req, res)`
-- [ ] Add to `server/routes/auth.js`:
+- [x] Add to `server/routes/auth.js`:
   - PUT `/me/password` (protected)
 
 **BACKEND Prompt:**
@@ -416,12 +416,12 @@ Add route: PUT /api/auth/me/password
 ```
 
 #### FRONTEND Agent Tasks:
-- [ ] Create `client/js/components/ChangePasswordForm.js`:
+- [x] Create `client/js/components/ChangePasswordForm.js`:
   - Current password
   - New password
   - Confirm new password
   - Client-side validation
-- [ ] Add to ProfilePage or Settings
+- [x] Add to ProfilePage or Settings
 
 **FRONTEND Prompt:**
 ```
@@ -439,16 +439,16 @@ Create client/js/components/ChangePasswordForm.js:
 ---
 
 ### US-1.4.1: General Settings
-**Priority:** P1 | **Complexity:** M (3) | **Status:** ⬜ Not Started
+**Priority:** P1 | **Complexity:** M (3) | **Status:** ✅ Complete
 
 **Story:** As a user, I want to configure general settings (theme, default view).
 
 #### BACKEND Agent Tasks:
-- [ ] Add to `server/services/authService.js`:
+- [x] Add to `server/services/authService.js`:
   - `updateSettings(userId, settings)` - Updates user.settings
-- [ ] Add to `server/controllers/authController.js`:
+- [x] Add to `server/controllers/authController.js`:
   - `updateSettings(req, res)`
-- [ ] Add to `server/routes/auth.js`:
+- [x] Add to `server/routes/auth.js`:
   - PUT `/me/settings` (protected)
 
 **BACKEND Prompt:**
@@ -463,13 +463,13 @@ Add route: PUT /api/auth/me/settings
 ```
 
 #### FRONTEND Agent Tasks:
-- [ ] Create `client/js/pages/SettingsPage.js`:
+- [x] Create `client/js/pages/SettingsPage.js`:
   - Theme selector (light/dark/system)
   - Default view selector (grid/list)
   - Notification toggle
   - Save button
-- [ ] Apply theme to app on change
-- [ ] Add settings route
+- [x] Apply theme to app on change
+- [x] Add settings route
 
 **FRONTEND Prompt:**
 ```

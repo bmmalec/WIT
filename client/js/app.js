@@ -11,8 +11,39 @@ import { auth } from './api.js';
 import RegisterPage from './pages/RegisterPage.js';
 import LoginPage from './pages/LoginPage.js';
 import DashboardPage from './pages/DashboardPage.js';
+import ProfilePage from './pages/ProfilePage.js';
+import EditProfilePage from './pages/EditProfilePage.js';
+import ChangePasswordPage from './pages/ChangePasswordPage.js';
+import SettingsPage from './pages/SettingsPage.js';
 
 const { createApp, ref, onMounted, watch } = Vue;
+
+// Theme utilities
+const applyTheme = (theme) => {
+  const root = document.documentElement;
+
+  if (theme === 'dark') {
+    root.classList.add('dark');
+  } else if (theme === 'light') {
+    root.classList.remove('dark');
+  } else {
+    // System preference
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (prefersDark) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }
+};
+
+// Listen for system theme changes
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+  const currentTheme = store.state.user?.settings?.theme;
+  if (currentTheme === 'system' || !currentTheme) {
+    applyTheme('system');
+  }
+});
 
 // Define routes
 const routes = [
@@ -45,6 +76,26 @@ const routes = [
   {
     path: '/dashboard',
     component: DashboardPage,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/profile',
+    component: ProfilePage,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/profile/edit',
+    component: EditProfilePage,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/profile/password',
+    component: ChangePasswordPage,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/settings',
+    component: SettingsPage,
     meta: { requiresAuth: true },
   },
   {
@@ -91,9 +142,15 @@ const App = {
       try {
         const response = await auth.me();
         store.setUser(response.data.user);
+
+        // Apply user's theme preference
+        const userTheme = response.data.user?.settings?.theme || 'system';
+        applyTheme(userTheme);
       } catch (error) {
         // Not authenticated, that's fine
         store.clearUser();
+        // Apply system theme for unauthenticated users
+        applyTheme('system');
       } finally {
         isLoading.value = false;
         store.setLoading(false);
@@ -160,3 +217,6 @@ app.mount('#app');
 
 // Expose app globally for debugging
 window.app = app;
+
+// Expose theme utilities
+window.applyTheme = applyTheme;
