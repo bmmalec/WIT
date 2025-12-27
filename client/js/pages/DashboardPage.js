@@ -6,8 +6,9 @@
 import LocationCard from '../components/LocationCard.js';
 import LocationForm from '../components/LocationForm.js';
 import LocationTree from '../components/LocationTree.js';
+import Breadcrumb from '../components/Breadcrumb.js';
 
-const { ref, computed, onMounted } = Vue;
+const { ref, computed, onMounted, watch } = Vue;
 
 export default {
   name: 'DashboardPage',
@@ -16,6 +17,7 @@ export default {
     LocationCard,
     LocationForm,
     LocationTree,
+    Breadcrumb,
   },
 
   setup() {
@@ -36,6 +38,12 @@ export default {
     const deletingLocation = ref(null);
     const deleting = ref(false);
     const cascadeDelete = ref(false);
+
+    // Selected location detail panel
+    const selectedLocation = ref(null);
+    const selectedAncestors = ref([]);
+    const loadingDetail = ref(false);
+    const showDetailPanel = ref(false);
 
     // Fetch locations (both flat and tree)
     const fetchLocations = async () => {
@@ -118,10 +126,38 @@ export default {
       fetchLocations();
     };
 
-    // Handle location click (navigate to location)
-    const handleLocationClick = (location) => {
-      // TODO: Navigate to location detail page
-      console.log('Navigate to location:', location._id);
+    // Handle location click (show detail panel with breadcrumb)
+    const handleLocationClick = async (location) => {
+      selectedLocation.value = location;
+      showDetailPanel.value = true;
+      loadingDetail.value = true;
+
+      try {
+        const response = await window.api.locations.getBreadcrumb(location._id);
+        selectedAncestors.value = response.data.ancestors || [];
+      } catch (err) {
+        console.error('Failed to fetch breadcrumb:', err);
+        selectedAncestors.value = [];
+      } finally {
+        loadingDetail.value = false;
+      }
+    };
+
+    // Close detail panel
+    const closeDetailPanel = () => {
+      showDetailPanel.value = false;
+      selectedLocation.value = null;
+      selectedAncestors.value = [];
+    };
+
+    // Handle breadcrumb navigation
+    const handleBreadcrumbNavigate = (item) => {
+      handleLocationClick(item);
+    };
+
+    // Handle breadcrumb home
+    const handleBreadcrumbHome = () => {
+      closeDetailPanel();
     };
 
     // Open delete confirmation
@@ -187,6 +223,10 @@ export default {
       deletingLocation,
       deleting,
       cascadeDelete,
+      selectedLocation,
+      selectedAncestors,
+      loadingDetail,
+      showDetailPanel,
       handleLogout,
       goToProfile,
       openCreateModal,
@@ -195,6 +235,9 @@ export default {
       closeModal,
       handleFormSuccess,
       handleLocationClick,
+      closeDetailPanel,
+      handleBreadcrumbNavigate,
+      handleBreadcrumbHome,
       openDeleteConfirm,
       closeDeleteConfirm,
       handleDelete,
@@ -476,6 +519,127 @@ export default {
               >
                 Cancel
               </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Location Detail Panel (Slide-out) -->
+      <div
+        v-if="showDetailPanel"
+        class="fixed inset-0 z-40 overflow-hidden"
+      >
+        <!-- Backdrop -->
+        <div
+          class="absolute inset-0 bg-gray-500 bg-opacity-50 transition-opacity"
+          @click="closeDetailPanel"
+        ></div>
+
+        <!-- Panel -->
+        <div class="absolute inset-y-0 right-0 max-w-full flex">
+          <div class="w-screen max-w-md">
+            <div class="h-full flex flex-col bg-white shadow-xl">
+              <!-- Header -->
+              <div class="px-4 py-4 border-b border-gray-200">
+                <div class="flex items-start justify-between">
+                  <h2 class="text-lg font-semibold text-gray-900">Location Details</h2>
+                  <button
+                    @click="closeDetailPanel"
+                    class="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                  </button>
+                </div>
+
+                <!-- Breadcrumb -->
+                <div class="mt-3">
+                  <div v-if="loadingDetail" class="flex items-center gap-2 text-gray-400">
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+                    <span class="text-sm">Loading path...</span>
+                  </div>
+                  <Breadcrumb
+                    v-else
+                    :ancestors="selectedAncestors"
+                    :current="selectedLocation"
+                    @navigate="handleBreadcrumbNavigate"
+                    @home="handleBreadcrumbHome"
+                  />
+                </div>
+              </div>
+
+              <!-- Content -->
+              <div class="flex-1 overflow-y-auto p-4" v-if="selectedLocation">
+                <!-- Location Icon and Name -->
+                <div class="flex items-center gap-3 mb-6">
+                  <span class="text-4xl">{{ selectedLocation.icon || '📍' }}</span>
+                  <div>
+                    <h3 class="text-xl font-semibold text-gray-900">{{ selectedLocation.name }}</h3>
+                    <p class="text-sm text-gray-500 capitalize">{{ selectedLocation.type?.replace('_', ' ') }}</p>
+                  </div>
+                </div>
+
+                <!-- Description -->
+                <div v-if="selectedLocation.description" class="mb-6">
+                  <h4 class="text-sm font-medium text-gray-700 mb-1">Description</h4>
+                  <p class="text-gray-600">{{ selectedLocation.description }}</p>
+                </div>
+
+                <!-- Stats -->
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                  <div class="bg-gray-50 rounded-lg p-3">
+                    <p class="text-2xl font-semibold text-gray-900">{{ selectedLocation.childCount || 0 }}</p>
+                    <p class="text-sm text-gray-500">Sub-locations</p>
+                  </div>
+                  <div class="bg-gray-50 rounded-lg p-3">
+                    <p class="text-2xl font-semibold text-gray-900">{{ selectedLocation.itemCount || 0 }}</p>
+                    <p class="text-sm text-gray-500">Items</p>
+                  </div>
+                </div>
+
+                <!-- Address -->
+                <div v-if="selectedLocation.address?.city" class="mb-6">
+                  <h4 class="text-sm font-medium text-gray-700 mb-1">Address</h4>
+                  <p class="text-gray-600">
+                    <span v-if="selectedLocation.address.street">{{ selectedLocation.address.street }}<br></span>
+                    {{ selectedLocation.address.city }}<span v-if="selectedLocation.address.state">, {{ selectedLocation.address.state }}</span>
+                    <span v-if="selectedLocation.address.zip"> {{ selectedLocation.address.zip }}</span>
+                    <span v-if="selectedLocation.address.country"><br>{{ selectedLocation.address.country }}</span>
+                  </p>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex gap-2">
+                  <button
+                    @click="openCreateWithParent(selectedLocation); closeDetailPanel()"
+                    class="flex-1 btn-secondary flex items-center justify-center gap-2"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Add Sub-location
+                  </button>
+                  <button
+                    @click="openEditModal(selectedLocation); closeDetailPanel()"
+                    class="btn-secondary px-4"
+                    title="Edit"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                  </button>
+                  <button
+                    @click="openDeleteConfirm(selectedLocation); closeDetailPanel()"
+                    class="btn-secondary px-4 text-red-600 hover:bg-red-50"
+                    title="Delete"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

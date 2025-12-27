@@ -153,6 +153,10 @@ const locations = {
     return API.get(`/locations/${id}`);
   },
 
+  getBreadcrumb(id) {
+    return API.get(`/locations/${id}/breadcrumb`);
+  },
+
   create(data) {
     return API.post('/locations', data);
   },
