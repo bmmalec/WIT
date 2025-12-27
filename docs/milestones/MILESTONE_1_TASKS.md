@@ -856,17 +856,19 @@ Add to location detail page header.
 ---
 
 ### US-2.3.1: Create Storage Container
-**Priority:** P0 | **Complexity:** M (3) | **Status:** ⬜ Not Started
+**Priority:** P0 | **Complexity:** M (3) | **Status:** ✅ Complete
 
 **Story:** As a user, I want to create storage containers with capacity configuration.
 
 #### DATABASE Agent Tasks:
-- [ ] Ensure Location model has capacity fields (done in US-2.1.1)
-- [ ] Add container-specific location types to seeds
+- [x] Ensure Location model has capacity fields (done in US-2.1.1)
+  - capacity.type: 'unlimited' | 'slots' | 'volume'
+  - capacity.max: Number
+  - capacity.used: Number
 
 #### BACKEND Agent Tasks:
-- [ ] Ensure locationService.create handles capacity configuration
-- [ ] Add validation for capacity fields
+- [x] Ensure locationService.create handles capacity configuration
+- [x] Add validation for capacity fields in routes
 
 **BACKEND Prompt:**
 ```
@@ -883,11 +885,13 @@ Validate capacity.max > 0 when type is not 'unlimited'.
 ```
 
 #### FRONTEND Agent Tasks:
-- [ ] Add capacity configuration to LocationForm:
-  - Show only for container types
-  - Type selector (unlimited/slots/volume)
-  - Max capacity input
-  - Unit label input (e.g., "drawers", "cubic feet")
+- [x] Add capacity configuration to LocationForm:
+  - Show only for container types (closet, cabinet, drawer, shelf, box, bin, container, storage_unit)
+  - Collapsible "Capacity Configuration" section
+  - Type selector with visual buttons (unlimited/slots/volume)
+  - Max capacity input with unit label
+  - Helpful descriptions for each type
+- [x] Display capacity progress bar in location detail panel
 
 **FRONTEND Prompt:**
 ```

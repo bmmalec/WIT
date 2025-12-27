@@ -609,6 +609,27 @@ export default {
                   </p>
                 </div>
 
+                <!-- Capacity -->
+                <div v-if="selectedLocation.capacity && selectedLocation.capacity.type !== 'unlimited'" class="mb-6">
+                  <h4 class="text-sm font-medium text-gray-700 mb-2">Capacity</h4>
+                  <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-sm text-gray-600">
+                        {{ selectedLocation.capacity.type === 'slots' ? 'Slots' : 'Volume' }}
+                      </span>
+                      <span class="text-sm font-medium">
+                        {{ selectedLocation.capacity.used || 0 }} / {{ selectedLocation.capacity.max || '∞' }}
+                      </span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        class="bg-blue-600 h-2 rounded-full transition-all"
+                        :style="{ width: selectedLocation.capacity.max ? ((selectedLocation.capacity.used || 0) / selectedLocation.capacity.max * 100) + '%' : '0%' }"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+
                 <!-- Actions -->
                 <div class="flex gap-2">
                   <button

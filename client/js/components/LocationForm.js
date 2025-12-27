@@ -79,10 +79,26 @@ export default {
         zip: '',
         country: '',
       },
+      capacity: {
+        type: 'unlimited',
+        max: null,
+        unit: '',
+      },
     });
 
     // Show address section
     const showAddress = ref(false);
+
+    // Show capacity section
+    const showCapacity = ref(false);
+
+    // Container types that support capacity configuration
+    const CONTAINER_TYPES = ['closet', 'cabinet', 'drawer', 'shelf', 'box', 'bin', 'container', 'storage_unit'];
+
+    // Check if current type is a container
+    const isContainerType = computed(() => {
+      return CONTAINER_TYPES.includes(form.type);
+    });
 
     // Is edit mode
     const isEditMode = computed(() => !!props.location);
@@ -100,6 +116,14 @@ export default {
         if (props.location.address) {
           form.address = { ...props.location.address };
           showAddress.value = Object.values(props.location.address).some(v => v);
+        }
+        if (props.location.capacity) {
+          form.capacity = {
+            type: props.location.capacity.type || 'unlimited',
+            max: props.location.capacity.max || null,
+            unit: props.location.capacity.unit || '',
+          };
+          showCapacity.value = props.location.capacity.type !== 'unlimited';
         }
       } else {
         form.parentId = props.parentId || null;
@@ -210,6 +234,16 @@ export default {
           }
         }
 
+        // Include capacity for container types
+        if (isContainerType.value && form.capacity.type !== 'unlimited') {
+          data.capacity = {
+            type: form.capacity.type,
+            max: form.capacity.max ? parseInt(form.capacity.max, 10) : undefined,
+          };
+        } else if (isContainerType.value) {
+          data.capacity = { type: 'unlimited' };
+        }
+
         let response;
         if (isEditMode.value) {
           response = await window.api.locations.update(props.location._id, data);
@@ -248,7 +282,9 @@ export default {
       errors,
       loading,
       showAddress,
+      showCapacity,
       isEditMode,
+      isContainerType,
       selectedTypeInfo,
       groupedTypes,
       LOCATION_TYPES,
@@ -433,6 +469,115 @@ export default {
               placeholder="Country"
             />
           </div>
+        </div>
+      </div>
+
+      <!-- Capacity Configuration (for container types) -->
+      <div v-if="isContainerType">
+        <button
+          type="button"
+          @click="showCapacity = !showCapacity"
+          class="flex items-center text-sm text-gray-600 hover:text-gray-900"
+        >
+          <svg
+            :class="['w-4 h-4 mr-1 transition-transform', showCapacity ? 'rotate-90' : '']"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+          Capacity Configuration
+        </button>
+
+        <div v-if="showCapacity" class="mt-3 space-y-4 pl-5 border-l-2 border-gray-200">
+          <!-- Capacity Type -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Capacity Type</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                @click="form.capacity.type = 'unlimited'"
+                :class="[
+                  'p-2 rounded-lg border-2 text-center transition-all text-sm',
+                  form.capacity.type === 'unlimited'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                ]"
+              >
+                <span class="block text-lg">∞</span>
+                <span class="text-xs">Unlimited</span>
+              </button>
+              <button
+                type="button"
+                @click="form.capacity.type = 'slots'"
+                :class="[
+                  'p-2 rounded-lg border-2 text-center transition-all text-sm',
+                  form.capacity.type === 'slots'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                ]"
+              >
+                <span class="block text-lg">🔢</span>
+                <span class="text-xs">Slots</span>
+              </button>
+              <button
+                type="button"
+                @click="form.capacity.type = 'volume'"
+                :class="[
+                  'p-2 rounded-lg border-2 text-center transition-all text-sm',
+                  form.capacity.type === 'volume'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                ]"
+              >
+                <span class="block text-lg">📦</span>
+                <span class="text-xs">Volume</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Max Capacity (only for slots/volume) -->
+          <div v-if="form.capacity.type !== 'unlimited'" class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="capacityMax" class="block text-sm font-medium text-gray-700 mb-1">
+                Maximum Capacity
+              </label>
+              <input
+                id="capacityMax"
+                v-model.number="form.capacity.max"
+                type="number"
+                min="1"
+                class="input"
+                :placeholder="form.capacity.type === 'slots' ? 'e.g., 10' : 'e.g., 100'"
+              />
+            </div>
+            <div>
+              <label for="capacityUnit" class="block text-sm font-medium text-gray-700 mb-1">
+                Unit (optional)
+              </label>
+              <input
+                id="capacityUnit"
+                v-model="form.capacity.unit"
+                type="text"
+                class="input"
+                :placeholder="form.capacity.type === 'slots' ? 'e.g., drawers' : 'e.g., cubic ft'"
+              />
+            </div>
+          </div>
+
+          <!-- Capacity Description -->
+          <p class="text-xs text-gray-500">
+            <span v-if="form.capacity.type === 'unlimited'">
+              This container has no capacity limit.
+            </span>
+            <span v-else-if="form.capacity.type === 'slots'">
+              Track fixed number of slots (e.g., drawer slots, shelf spaces).
+            </span>
+            <span v-else>
+              Track by volume or size (e.g., cubic feet, liters).
+            </span>
+          </p>
         </div>
       </div>
 
