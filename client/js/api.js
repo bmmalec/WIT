@@ -268,6 +268,63 @@ const items = {
   getLowStock() {
     return API.get('/items/low-stock');
   },
+
+  /**
+   * Upload images for an item
+   * @param {string} id - Item ID
+   * @param {FileList|File[]} files - Files to upload
+   */
+  async uploadImages(id, files) {
+    const formData = new FormData();
+    for (const file of files) {
+      formData.append('images', file);
+    }
+
+    const response = await fetch(`${API.baseUrl}/items/${id}/images`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new ApiError(
+        data.error?.message || 'Failed to upload images',
+        data.error?.code || 'UPLOAD_ERROR',
+        data.error?.details || null
+      );
+    }
+
+    return data;
+  },
+
+  /**
+   * Delete an image from an item
+   * @param {string} id - Item ID
+   * @param {number} imageIndex - Index of image to delete
+   */
+  deleteImage(id, imageIndex) {
+    return API.delete(`/items/${id}/images/${imageIndex}`);
+  },
+
+  /**
+   * Set primary image for an item
+   * @param {string} id - Item ID
+   * @param {number} imageIndex - Index of image to set as primary
+   */
+  setPrimaryImage(id, imageIndex) {
+    return API.put(`/items/${id}/images/${imageIndex}/primary`);
+  },
+
+  /**
+   * Reorder images for an item
+   * @param {string} id - Item ID
+   * @param {number[]} order - New order of image indices
+   */
+  reorderImages(id, order) {
+    return API.put(`/items/${id}/images/reorder`, { order });
+  },
 };
 
 // Categories API

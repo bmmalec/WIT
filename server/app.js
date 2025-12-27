@@ -104,7 +104,11 @@ app.use('/api/auth', authLimiter, require('./routes/auth'));
 app.use('/api/locations', require('./routes/locations'));
 app.use('/api', require('./routes/shares')); // Shares routes (includes /shares and /locations/:id/share)
 app.use('/api/items', require('./routes/items'));
+app.use('/api/items', require('./routes/images')); // Image upload routes (/api/items/:itemId/images)
 app.use('/api/categories', require('./routes/categories'));
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Serve static files from client directory
 app.use(express.static(path.join(__dirname, '../client')));

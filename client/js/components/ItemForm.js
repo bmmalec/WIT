@@ -3,6 +3,8 @@
  * Modal form for creating and editing items
  */
 
+import ImageUpload from './ImageUpload.js';
+
 const { ref, reactive, computed, onMounted, watch } = Vue;
 
 // Item types
@@ -34,6 +36,10 @@ const QUANTITY_UNITS = [
 
 export default {
   name: 'ItemForm',
+
+  components: {
+    ImageUpload,
+  },
 
   props: {
     locationId: {
@@ -89,6 +95,10 @@ export default {
     // Tag input
     const tagInput = ref('');
     const alternateNameInput = ref('');
+
+    // Images state
+    const images = ref([]);
+    const imageUploadRef = ref(null);
 
     // Is editing mode
     const isEditing = computed(() => !!props.item);
@@ -146,6 +156,7 @@ export default {
         vendor: item.value?.vendor || '',
       };
       form.notes = item.notes || '';
+      images.value = [...(item.images || [])];
     };
 
     // Reset form
@@ -167,6 +178,10 @@ export default {
       tagInput.value = '';
       alternateNameInput.value = '';
       error.value = '';
+      images.value = [];
+      if (imageUploadRef.value) {
+        imageUploadRef.value.clearPending();
+      }
     };
 
     // Add tag
@@ -195,6 +210,39 @@ export default {
     // Remove alternate name
     const removeAlternateName = (index) => {
       form.alternateNames.splice(index, 1);
+    };
+
+    // Handle image upload success
+    const handleImageUpload = (newImages) => {
+      images.value.push(...newImages);
+    };
+
+    // Handle image delete
+    const handleImageDelete = async (imageIndex) => {
+      if (!props.item?._id) return;
+
+      try {
+        await window.api.items.deleteImage(props.item._id, imageIndex);
+        images.value.splice(imageIndex, 1);
+        window.store?.success('Image deleted');
+      } catch (err) {
+        console.error('Failed to delete image:', err);
+        error.value = err.message || 'Failed to delete image';
+      }
+    };
+
+    // Handle set primary image
+    const handleSetPrimary = async (imageIndex) => {
+      if (!props.item?._id) return;
+
+      try {
+        const result = await window.api.items.setPrimaryImage(props.item._id, imageIndex);
+        images.value = result.data.images;
+        window.store?.success('Primary image updated');
+      } catch (err) {
+        console.error('Failed to set primary image:', err);
+        error.value = err.message || 'Failed to set primary image';
+      }
     };
 
     // Submit form
@@ -277,10 +325,15 @@ export default {
       isEditing,
       ITEM_TYPES,
       QUANTITY_UNITS,
+      images,
+      imageUploadRef,
       addTag,
       removeTag,
       addAlternateName,
       removeAlternateName,
+      handleImageUpload,
+      handleImageDelete,
+      handleSetPrimary,
       handleSubmit,
       handleClose,
     };
@@ -478,6 +531,25 @@ export default {
                 class="input"
                 placeholder="Item description..."
               ></textarea>
+            </div>
+
+            <!-- Images -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Images</label>
+              <div v-if="isEditing">
+                <ImageUpload
+                  ref="imageUploadRef"
+                  :item-id="item?._id"
+                  :images="images"
+                  :disabled="loading"
+                  @upload="handleImageUpload"
+                  @delete="handleImageDelete"
+                  @set-primary="handleSetPrimary"
+                />
+              </div>
+              <p v-else class="text-sm text-gray-500 py-4 text-center border-2 border-dashed border-gray-200 rounded-lg">
+                Save the item first to upload images
+              </p>
             </div>
 
             <!-- Notes -->
