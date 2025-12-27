@@ -100,7 +100,7 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/auth', authLimiter, require('./routes/auth'));
-// app.use('/api/locations', require('./routes/locations'));
+app.use('/api/locations', require('./routes/locations'));
 // app.use('/api/items', require('./routes/items'));
 // app.use('/api/shares', require('./routes/shares'));
 // app.use('/api/invites', require('./routes/invites'));

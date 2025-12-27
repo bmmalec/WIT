@@ -491,12 +491,12 @@ Apply theme changes immediately to document.
 ## Epic 2: Hierarchical Location Management
 
 ### US-2.1.1: Create Top-Level Location
-**Priority:** P0 | **Complexity:** M (3) | **Status:** ⬜ Not Started
+**Priority:** P0 | **Complexity:** M (3) | **Status:** ✅ Complete
 
 **Story:** As a user, I want to create top-level locations (house, warehouse, storage unit).
 
 #### DATABASE Agent Tasks:
-- [ ] Create `server/models/Location.js` with schema:
+- [x] Create `server/models/Location.js` with schema:
   - `ownerId` - ObjectId, ref: 'User', required, indexed
   - `name` - String, required, trimmed, max 100
   - `description` - String, optional, max 500
@@ -519,19 +519,19 @@ Apply theme changes immediately to document.
   - `capacity.used` - Number
   - `isActive` - Boolean, default: true
   - `timestamps` - true
-- [ ] Add indexes:
+- [x] Add indexes:
   - `{ ownerId: 1, parentId: 1 }`
   - `{ path: 1 }`
   - `{ ownerId: 1, name: 'text' }`
-- [ ] Add static methods:
+- [x] Add static methods:
   - `getTree(ownerId)` - Returns full tree for user
   - `getAncestors(path)` - Returns ancestor locations
   - `getDescendants(locationId)` - Returns all children recursively
-- [ ] Add instance methods:
+- [x] Add instance methods:
   - `isDescendantOf(ancestorId)` - Check if location is under ancestor
   - `getFullPath()` - Returns array of ancestor names
-- [ ] Create `server/models/LocationType.js` for custom types
-- [ ] Update `docs/interfaces/models.md`
+- [x] Create `server/models/LocationType.js` for custom types
+- [x] Update `docs/interfaces/models.md`
 
 **DATABASE Prompt:**
 ```
@@ -552,24 +552,24 @@ Update docs/interfaces/models.md.
 ```
 
 #### BACKEND Agent Tasks:
-- [ ] Create `server/services/locationService.js`:
+- [x] Create `server/services/locationService.js`:
   - `create(ownerId, data)` - Creates location with proper path/depth
   - `getAll(ownerId)` - Gets all locations for user
   - `getTree(ownerId)` - Gets hierarchical tree
   - `getById(userId, locationId)` - Gets single location with permission check
-- [ ] Create `server/controllers/locationController.js`:
+- [x] Create `server/controllers/locationController.js`:
   - `create(req, res)` - POST handler
   - `getAll(req, res)` - GET / handler
   - `getTree(req, res)` - GET /tree handler
   - `getOne(req, res)` - GET /:id handler
-- [ ] Create `server/routes/locations.js`:
+- [x] Create `server/routes/locations.js`:
   - All routes protected
   - POST `/` - Create location
   - GET `/` - List locations
   - GET `/tree` - Get tree structure
   - GET `/:id` - Get single location
-- [ ] Register routes in app.js
-- [ ] Update `docs/interfaces/api-endpoints.md`
+- [x] Register routes in app.js
+- [x] Update `docs/interfaces/api-endpoints.md`
 
 **BACKEND Prompt:**
 ```
@@ -592,21 +592,21 @@ Update docs/interfaces/api-endpoints.md.
 ```
 
 #### FRONTEND Agent Tasks:
-- [ ] Create `client/js/components/LocationForm.js`:
+- [x] Create `client/js/components/LocationForm.js`:
   - Name input
   - Type selector (with icons)
   - Description textarea
   - Address fields (collapsible)
   - Parent selector (for sub-locations)
-- [ ] Create `client/js/components/LocationCard.js`:
+- [x] Create `client/js/components/LocationCard.js`:
   - Shows location with type icon
   - Item count badge
   - Click to navigate
-- [ ] Create `client/js/pages/DashboardPage.js`:
+- [x] Create `client/js/pages/DashboardPage.js`:
   - "My Locations" section
   - "Add Location" button
   - Grid of LocationCards
-- [ ] Add modal for location creation
+- [x] Add modal for location creation
 
 **FRONTEND Prompt:**
 ```

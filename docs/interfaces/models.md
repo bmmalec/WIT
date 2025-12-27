@@ -90,4 +90,108 @@ if (user.isLocked()) {
 
 ---
 
+## Location Model
+
+### Schema Fields
+
+| Field | Type | Required | Default | Notes |
+|-------|------|----------|---------|-------|
+| `ownerId` | ObjectId | Yes | - | Reference to User, indexed |
+| `name` | String | Yes | - | Max 100 chars, trimmed |
+| `description` | String | No | - | Max 500 chars |
+| `type` | String | Yes | - | Enum: house, warehouse, storage_unit, office, vehicle, room, zone, container, garage, basement, attic, kitchen, bedroom, bathroom, workshop, living_room, closet, cabinet, drawer, shelf, box, bin, custom |
+| `customType` | String | No | - | Custom type label when type='custom' |
+| `icon` | String | No | - | Icon identifier or emoji |
+| `color` | String | No | - | Hex color (e.g., '#FF5733') |
+| `parentId` | ObjectId | No | null | Reference to parent Location, indexed |
+| `path` | String | Yes | - | Materialized path: ",id1,id2,id3," |
+| `depth` | Number | Yes | 0 | Nesting depth (0 = top-level) |
+| `address.street` | String | No | - | Street address |
+| `address.city` | String | No | - | City |
+| `address.state` | String | No | - | State/Province |
+| `address.zip` | String | No | - | ZIP/Postal code |
+| `address.country` | String | No | - | Country |
+| `itemCount` | Number | No | 0 | Cached count of items |
+| `childCount` | Number | No | 0 | Cached count of child locations |
+| `capacity.type` | String | No | 'unlimited' | Enum: 'unlimited', 'slots', 'volume' |
+| `capacity.max` | Number | No | - | Maximum capacity |
+| `capacity.used` | Number | No | 0 | Current usage |
+| `isActive` | Boolean | No | true | Soft delete flag |
+| `createdAt` | Date | Auto | - | Timestamp |
+| `updatedAt` | Date | Auto | - | Timestamp |
+
+### Instance Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `isDescendantOf(ancestorId)` | Boolean | Checks if location is under the given ancestor |
+| `getFullPath()` | Promise\<Array\<String\>\> | Returns array of ancestor names including self |
+
+### Static Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `getTree(ownerId)` | Promise\<Array\> | Returns full nested tree for user |
+| `getAncestors(path)` | Promise\<Array\> | Returns ancestor locations from path |
+| `getDescendants(locationId)` | Promise\<Array\> | Returns all children recursively |
+
+### Indexes
+
+| Fields | Type | Purpose |
+|--------|------|---------|
+| `{ ownerId: 1 }` | Standard | Fast user location lookup |
+| `{ parentId: 1 }` | Standard | Fast child lookup |
+| `{ ownerId: 1, parentId: 1 }` | Compound | Combined owner+parent queries |
+| `{ path: 1 }` | Standard | Ancestor/descendant queries |
+| `{ ownerId: 1, name: 'text' }` | Text | Full-text search |
+
+### Materialized Path Pattern
+
+The `path` field stores the full ancestry as a comma-delimited string of IDs:
+- Format: `,id1,id2,id3,` (leading and trailing commas)
+- Top-level: `,{ownId},`
+- Nested: `,{rootId},{parentId},{ownId},`
+
+Benefits:
+- Fast ancestor queries with string matching
+- Single query to find all descendants
+- No recursive queries needed
+
+### Usage Examples
+
+```javascript
+// Create top-level location
+const location = new Location({
+  ownerId: userId,
+  name: 'My House',
+  type: 'house',
+  path: `,${newId},`,
+  depth: 0
+});
+await location.save();
+
+// Create nested location
+const room = new Location({
+  ownerId: userId,
+  name: 'Garage',
+  type: 'garage',
+  parentId: houseId,
+  path: `${house.path}${newId},`,
+  depth: house.depth + 1
+});
+
+// Get full tree
+const tree = await Location.getTree(userId);
+
+// Get ancestors
+const ancestors = await Location.getAncestors(location.path);
+
+// Check ancestry
+if (location.isDescendantOf(houseId)) {
+  console.log('Location is inside house');
+}
+```
+
+---
+
 *More models will be added as they are implemented.*
