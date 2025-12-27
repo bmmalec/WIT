@@ -522,6 +522,32 @@ export default {
               </div>
             </div>
 
+            <!-- Alternate Names -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Also Known As</label>
+              <p class="text-xs text-gray-500 mb-2">Add other names to help find this item in search</p>
+              <div class="flex gap-2">
+                <input
+                  v-model="alternateNameInput"
+                  type="text"
+                  class="input flex-1"
+                  placeholder="e.g., Phillips screwdriver, crosshead"
+                  @keydown.enter.prevent="addAlternateName"
+                />
+                <button type="button" @click="addAlternateName" class="btn-secondary">Add</button>
+              </div>
+              <div v-if="form.alternateNames.length > 0" class="mt-2 flex flex-wrap gap-2">
+                <span
+                  v-for="(name, index) in form.alternateNames"
+                  :key="name"
+                  class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-sm"
+                >
+                  {{ name }}
+                  <button type="button" @click="removeAlternateName(index)" class="hover:text-green-900">&times;</button>
+                </span>
+              </div>
+            </div>
+
             <!-- Description -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
