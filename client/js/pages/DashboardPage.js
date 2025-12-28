@@ -17,6 +17,7 @@ import ExpirationWidget from '../components/ExpirationWidget.js';
 import SearchBar from '../components/SearchBar.js';
 import SearchResults from '../components/SearchResults.js';
 import SearchFilters from '../components/SearchFilters.js';
+import BulkImportModal from '../components/BulkImportModal.js';
 
 const { ref, computed, onMounted, watch } = Vue;
 
@@ -38,6 +39,7 @@ export default {
     SearchBar,
     SearchResults,
     SearchFilters,
+    BulkImportModal,
   },
 
   setup() {
@@ -648,6 +650,30 @@ export default {
       }
     };
 
+    // Close bulk import modal
+    const closeBulkImport = () => {
+      showBulkImport.value = false;
+    };
+
+    // Handle bulk session started
+    const handleBulkSessionStarted = (session) => {
+      activeBulkSession.value = session;
+    };
+
+    // Handle bulk session committed
+    const handleBulkSessionCommitted = (result) => {
+      activeBulkSession.value = null;
+      // Refresh items if we're viewing a location
+      if (selectedLocation.value) {
+        fetchItems(selectedLocation.value._id);
+      }
+    };
+
+    // Handle bulk session cancelled
+    const handleBulkSessionCancelled = () => {
+      activeBulkSession.value = null;
+    };
+
     onMounted(() => {
       fetchLocations();
       fetchInvitesAndShares();
@@ -756,6 +782,10 @@ export default {
       activeBulkSession,
       showBulkImport,
       startBulkImport,
+      closeBulkImport,
+      handleBulkSessionStarted,
+      handleBulkSessionCommitted,
+      handleBulkSessionCancelled,
     };
   },
 
@@ -1491,6 +1521,18 @@ export default {
         :initial-filter="expirationPanelFilter"
         @close="closeExpirationPanel"
         @item-click="handleExpirationItemClick"
+      />
+
+      <!-- Bulk Import Modal -->
+      <BulkImportModal
+        :show="showBulkImport"
+        :locations="locationTree"
+        :categories="categories"
+        :existing-session="activeBulkSession"
+        @close="closeBulkImport"
+        @session-started="handleBulkSessionStarted"
+        @session-committed="handleBulkSessionCommitted"
+        @session-cancelled="handleBulkSessionCancelled"
       />
     </div>
   `,
