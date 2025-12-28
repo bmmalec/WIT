@@ -48,8 +48,71 @@ const userSchema = new mongoose.Schema(
         default: 'grid',
       },
       notifications: {
-        type: Boolean,
-        default: true,
+        // Master toggle for all notifications
+        enabled: {
+          type: Boolean,
+          default: true,
+        },
+        // Email notification preferences
+        email: {
+          enabled: {
+            type: Boolean,
+            default: true,
+          },
+          // Types of email notifications
+          expiration: {
+            type: Boolean,
+            default: true,
+          },
+          lowStock: {
+            type: Boolean,
+            default: true,
+          },
+          // Frequency: immediate, daily, weekly
+          frequency: {
+            type: String,
+            enum: ['immediate', 'daily', 'weekly'],
+            default: 'daily',
+          },
+          // Days ahead to alert for expiration (1-30)
+          expirationDaysAhead: {
+            type: Number,
+            min: 1,
+            max: 30,
+            default: 7,
+          },
+          // Preferred time for digest emails (hour in 24h format)
+          digestHour: {
+            type: Number,
+            min: 0,
+            max: 23,
+            default: 8,
+          },
+          // Last digest sent timestamp
+          lastDigestSent: {
+            type: Date,
+            default: null,
+          },
+        },
+        // In-app notification preferences
+        inApp: {
+          enabled: {
+            type: Boolean,
+            default: true,
+          },
+          expiration: {
+            type: Boolean,
+            default: true,
+          },
+          lowStock: {
+            type: Boolean,
+            default: true,
+          },
+          shoppingList: {
+            type: Boolean,
+            default: true,
+          },
+        },
       },
       // Expiration period settings
       expirationPeriod: {

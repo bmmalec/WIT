@@ -769,10 +769,102 @@ const analytics = {
   },
 };
 
+// Notifications API
+const notifications = {
+  /**
+   * Get notifications for current user
+   * @param {Object} options - Query options
+   */
+  getAll(options = {}) {
+    const params = new URLSearchParams();
+    if (options.status) params.append('status', options.status);
+    if (options.type) params.append('type', options.type);
+    if (options.limit) params.append('limit', options.limit);
+    if (options.skip) params.append('skip', options.skip);
+    const query = params.toString();
+    return API.get(`/notifications${query ? '?' + query : ''}`);
+  },
+
+  /**
+   * Get unread notification count
+   */
+  getUnreadCount() {
+    return API.get('/notifications/unread-count');
+  },
+
+  /**
+   * Get notification settings
+   */
+  getSettings() {
+    return API.get('/notifications/settings');
+  },
+
+  /**
+   * Update notification settings
+   * @param {Object} settings - Settings to update
+   */
+  updateSettings(settings) {
+    return API.put('/notifications/settings', settings);
+  },
+
+  /**
+   * Mark notification as read
+   * @param {string} id - Notification ID
+   */
+  markRead(id) {
+    return API.put(`/notifications/${id}/read`);
+  },
+
+  /**
+   * Mark all notifications as read
+   */
+  markAllRead() {
+    return API.put('/notifications/read-all');
+  },
+
+  /**
+   * Dismiss notification
+   * @param {string} id - Notification ID
+   */
+  dismiss(id) {
+    return API.put(`/notifications/${id}/dismiss`);
+  },
+
+  /**
+   * Dismiss all notifications
+   */
+  dismissAll() {
+    return API.put('/notifications/dismiss-all');
+  },
+
+  /**
+   * Delete notification
+   * @param {string} id - Notification ID
+   */
+  delete(id) {
+    return API.delete(`/notifications/${id}`);
+  },
+
+  /**
+   * Send test email
+   */
+  sendTestEmail() {
+    return API.post('/notifications/test-email');
+  },
+
+  /**
+   * Trigger notification check
+   * @param {Object} options - Check options
+   */
+  triggerCheck(options = {}) {
+    return API.post('/notifications/check', options);
+  },
+};
+
 // Export for ES modules
-export { API, ApiError, auth, locations, items, categories, shares, identify, bulkSessions, shoppingList, analytics };
+export { API, ApiError, auth, locations, items, categories, shares, identify, bulkSessions, shoppingList, analytics, notifications };
 
 // Also expose globally for non-module scripts
 window.API = API;
 window.ApiError = ApiError;
-window.api = { auth, locations, items, categories, shares, identify, bulkSessions, shoppingList, analytics };
+window.api = { auth, locations, items, categories, shares, identify, bulkSessions, shoppingList, analytics, notifications };

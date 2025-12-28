@@ -110,6 +110,7 @@ app.use('/api/identify', require('./routes/identify')); // AI identification rou
 app.use('/api/bulk-sessions', require('./routes/bulkSessions')); // Bulk import sessions
 app.use('/api/shopping-list', require('./routes/shoppingList')); // Shopping list
 app.use('/api/analytics', require('./routes/analytics')); // Analytics
+app.use('/api/notifications', require('./routes/notifications')); // Notifications
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

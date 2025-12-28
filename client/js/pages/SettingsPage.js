@@ -19,6 +19,8 @@ export default {
   setup() {
     const loading = ref(true);
     const saving = ref(false);
+    const savingNotifications = ref(false);
+    const sendingTestEmail = ref(false);
     const error = ref(null);
     const successMessage = ref('');
 
@@ -26,7 +28,23 @@ export default {
     const settings = reactive({
       theme: 'system',
       defaultView: 'grid',
-      notifications: true,
+      notifications: {
+        enabled: true,
+        email: {
+          enabled: true,
+          expiration: true,
+          lowStock: true,
+          frequency: 'daily',
+          expirationDaysAhead: 7,
+          digestHour: 8,
+        },
+        inApp: {
+          enabled: true,
+          expiration: true,
+          lowStock: true,
+          shoppingList: true,
+        },
+      },
       expirationPeriod: {
         periodType: 'quarterly',
         startDate: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0],
@@ -69,7 +87,7 @@ export default {
       return (
         settings.theme !== originalSettings.value.theme ||
         settings.defaultView !== originalSettings.value.defaultView ||
-        settings.notifications !== originalSettings.value.notifications ||
+        JSON.stringify(settings.notifications) !== JSON.stringify(originalSettings.value.notifications) ||
         settings.expirationPeriod.periodType !== originalSettings.value.expirationPeriod?.periodType ||
         settings.expirationPeriod.startDate !== originalSettings.value.expirationPeriod?.startDate ||
         settings.expirationPeriod.usePatterns !== originalSettings.value.expirationPeriod?.usePatterns ||
@@ -88,7 +106,29 @@ export default {
 
         settings.theme = user.settings?.theme || 'system';
         settings.defaultView = user.settings?.defaultView || 'grid';
-        settings.notifications = user.settings?.notifications !== false;
+
+        // Load notification settings
+        const notifSettings = user.settings?.notifications;
+        if (notifSettings && typeof notifSettings === 'object') {
+          settings.notifications.enabled = notifSettings.enabled !== false;
+          if (notifSettings.email) {
+            settings.notifications.email.enabled = notifSettings.email.enabled !== false;
+            settings.notifications.email.expiration = notifSettings.email.expiration !== false;
+            settings.notifications.email.lowStock = notifSettings.email.lowStock !== false;
+            settings.notifications.email.frequency = notifSettings.email.frequency || 'daily';
+            settings.notifications.email.expirationDaysAhead = notifSettings.email.expirationDaysAhead || 7;
+            settings.notifications.email.digestHour = notifSettings.email.digestHour ?? 8;
+          }
+          if (notifSettings.inApp) {
+            settings.notifications.inApp.enabled = notifSettings.inApp.enabled !== false;
+            settings.notifications.inApp.expiration = notifSettings.inApp.expiration !== false;
+            settings.notifications.inApp.lowStock = notifSettings.inApp.lowStock !== false;
+            settings.notifications.inApp.shoppingList = notifSettings.inApp.shoppingList !== false;
+          }
+        } else {
+          // Legacy boolean format - convert to new structure
+          settings.notifications.enabled = notifSettings !== false;
+        }
 
         // Load expiration period settings
         const expSettings = user.settings?.expirationPeriod;
@@ -173,11 +213,45 @@ export default {
       if (originalSettings.value) {
         settings.theme = originalSettings.value.theme;
         settings.defaultView = originalSettings.value.defaultView;
-        settings.notifications = originalSettings.value.notifications;
+        settings.notifications = JSON.parse(JSON.stringify(originalSettings.value.notifications));
         settings.expirationPeriod.periodType = originalSettings.value.expirationPeriod?.periodType || 'quarterly';
         settings.expirationPeriod.startDate = originalSettings.value.expirationPeriod?.startDate || new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
         settings.expirationPeriod.colorScheme = originalSettings.value.expirationPeriod?.colorScheme ? [...originalSettings.value.expirationPeriod.colorScheme] : [...DEFAULT_COLORS];
         settings.expirationPeriod.usePatterns = originalSettings.value.expirationPeriod?.usePatterns || false;
+      }
+    };
+
+    // Save notification settings separately
+    const saveNotificationSettings = async () => {
+      savingNotifications.value = true;
+      error.value = null;
+
+      try {
+        await window.api.notifications.updateSettings(settings.notifications);
+        successMessage.value = 'Notification settings saved';
+        setTimeout(() => { successMessage.value = ''; }, 3000);
+      } catch (err) {
+        console.error('Failed to save notification settings:', err);
+        error.value = err.message || 'Failed to save notification settings';
+      } finally {
+        savingNotifications.value = false;
+      }
+    };
+
+    // Send test email
+    const sendTestEmail = async () => {
+      sendingTestEmail.value = true;
+      error.value = null;
+
+      try {
+        await window.api.notifications.sendTestEmail();
+        successMessage.value = 'Test email sent! Check your inbox.';
+        setTimeout(() => { successMessage.value = ''; }, 5000);
+      } catch (err) {
+        console.error('Failed to send test email:', err);
+        error.value = err.message || 'Failed to send test email';
+      } finally {
+        sendingTestEmail.value = false;
       }
     };
 
@@ -206,6 +280,8 @@ export default {
     return {
       loading,
       saving,
+      savingNotifications,
+      sendingTestEmail,
       error,
       successMessage,
       settings,
@@ -221,6 +297,8 @@ export default {
       updateColor,
       updateColorName,
       resetColors,
+      saveNotificationSettings,
+      sendTestEmail,
     };
   },
 
@@ -426,31 +504,197 @@ export default {
           <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
               <h2 class="text-lg font-medium text-gray-900 dark:text-white">Notifications</h2>
-              <p class="text-sm text-gray-500 dark:text-gray-400">Manage your notification preferences</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">Manage alerts for expiring items and low stock</p>
             </div>
 
-            <div class="px-6 py-4">
-              <!-- Enable Notifications Toggle -->
+            <div class="px-6 py-4 space-y-6">
+              <!-- Master Toggle -->
               <div class="flex items-center justify-between">
                 <div>
-                  <h3 class="text-sm font-medium text-gray-900 dark:text-white">Enable notifications</h3>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">Receive updates about shared locations and items</p>
+                  <h3 class="text-sm font-medium text-gray-900 dark:text-white">Enable all notifications</h3>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">Master toggle for all notification types</p>
                 </div>
                 <button
                   type="button"
-                  @click="settings.notifications = !settings.notifications"
+                  @click="settings.notifications.enabled = !settings.notifications.enabled"
                   :class="[
                     'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
-                    settings.notifications ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                    settings.notifications.enabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
                   ]"
                 >
                   <span
                     :class="[
                       'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                      settings.notifications ? 'translate-x-5' : 'translate-x-0'
+                      settings.notifications.enabled ? 'translate-x-5' : 'translate-x-0'
                     ]"
                   />
                 </button>
+              </div>
+
+              <!-- Email Notifications -->
+              <div v-if="settings.notifications.enabled" class="border-t border-gray-200 dark:border-gray-700 pt-6">
+                <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                  </svg>
+                  Email Notifications
+                </h4>
+
+                <div class="space-y-4">
+                  <!-- Email Enable -->
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-700 dark:text-gray-300">Enable email notifications</span>
+                    <button
+                      type="button"
+                      @click="settings.notifications.email.enabled = !settings.notifications.email.enabled"
+                      :class="[
+                        'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+                        settings.notifications.email.enabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                      ]"
+                    >
+                      <span :class="['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out', settings.notifications.email.enabled ? 'translate-x-5' : 'translate-x-0']"/>
+                    </button>
+                  </div>
+
+                  <div v-if="settings.notifications.email.enabled" class="ml-4 space-y-4 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
+                    <!-- Expiration Alerts -->
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm text-gray-600 dark:text-gray-400">Expiration alerts</span>
+                      <button
+                        type="button"
+                        @click="settings.notifications.email.expiration = !settings.notifications.email.expiration"
+                        :class="[
+                          'relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out',
+                          settings.notifications.email.expiration ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                        ]"
+                      >
+                        <span :class="['pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out', settings.notifications.email.expiration ? 'translate-x-4' : 'translate-x-0']"/>
+                      </button>
+                    </div>
+
+                    <!-- Low Stock Alerts -->
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm text-gray-600 dark:text-gray-400">Low stock alerts</span>
+                      <button
+                        type="button"
+                        @click="settings.notifications.email.lowStock = !settings.notifications.email.lowStock"
+                        :class="[
+                          'relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out',
+                          settings.notifications.email.lowStock ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                        ]"
+                      >
+                        <span :class="['pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out', settings.notifications.email.lowStock ? 'translate-x-4' : 'translate-x-0']"/>
+                      </button>
+                    </div>
+
+                    <!-- Frequency -->
+                    <div>
+                      <label class="block text-sm text-gray-600 dark:text-gray-400 mb-1">Frequency</label>
+                      <select v-model="settings.notifications.email.frequency" class="input w-full max-w-xs text-sm">
+                        <option value="immediate">Immediate</option>
+                        <option value="daily">Daily digest</option>
+                        <option value="weekly">Weekly digest</option>
+                      </select>
+                    </div>
+
+                    <!-- Days Ahead -->
+                    <div>
+                      <label class="block text-sm text-gray-600 dark:text-gray-400 mb-1">Alert days before expiration</label>
+                      <input
+                        type="number"
+                        v-model.number="settings.notifications.email.expirationDaysAhead"
+                        min="1"
+                        max="30"
+                        class="input w-20 text-sm"
+                      />
+                      <span class="text-sm text-gray-500 ml-2">days</span>
+                    </div>
+
+                    <!-- Digest Hour -->
+                    <div v-if="settings.notifications.email.frequency !== 'immediate'">
+                      <label class="block text-sm text-gray-600 dark:text-gray-400 mb-1">Send digest at</label>
+                      <select v-model.number="settings.notifications.email.digestHour" class="input w-32 text-sm">
+                        <option v-for="h in 24" :key="h-1" :value="h-1">
+                          {{ (h-1).toString().padStart(2, '0') }}:00
+                        </option>
+                      </select>
+                    </div>
+
+                    <!-- Test Email Button -->
+                    <button
+                      type="button"
+                      @click="sendTestEmail"
+                      :disabled="sendingTestEmail"
+                      class="text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50 flex items-center gap-1"
+                    >
+                      <svg v-if="sendingTestEmail" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      {{ sendingTestEmail ? 'Sending...' : 'Send test email' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- In-App Notifications -->
+              <div v-if="settings.notifications.enabled" class="border-t border-gray-200 dark:border-gray-700 pt-6">
+                <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                  </svg>
+                  In-App Notifications
+                </h4>
+
+                <div class="space-y-4">
+                  <!-- In-App Enable -->
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-700 dark:text-gray-300">Enable in-app notifications</span>
+                    <button
+                      type="button"
+                      @click="settings.notifications.inApp.enabled = !settings.notifications.inApp.enabled"
+                      :class="[
+                        'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+                        settings.notifications.inApp.enabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                      ]"
+                    >
+                      <span :class="['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out', settings.notifications.inApp.enabled ? 'translate-x-5' : 'translate-x-0']"/>
+                    </button>
+                  </div>
+
+                  <div v-if="settings.notifications.inApp.enabled" class="ml-4 space-y-3 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm text-gray-600 dark:text-gray-400">Expiration alerts</span>
+                      <button
+                        type="button"
+                        @click="settings.notifications.inApp.expiration = !settings.notifications.inApp.expiration"
+                        :class="['relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out', settings.notifications.inApp.expiration ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700']"
+                      >
+                        <span :class="['pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out', settings.notifications.inApp.expiration ? 'translate-x-4' : 'translate-x-0']"/>
+                      </button>
+                    </div>
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm text-gray-600 dark:text-gray-400">Low stock alerts</span>
+                      <button
+                        type="button"
+                        @click="settings.notifications.inApp.lowStock = !settings.notifications.inApp.lowStock"
+                        :class="['relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out', settings.notifications.inApp.lowStock ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700']"
+                      >
+                        <span :class="['pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out', settings.notifications.inApp.lowStock ? 'translate-x-4' : 'translate-x-0']"/>
+                      </button>
+                    </div>
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm text-gray-600 dark:text-gray-400">Shopping list reminders</span>
+                      <button
+                        type="button"
+                        @click="settings.notifications.inApp.shoppingList = !settings.notifications.inApp.shoppingList"
+                        :class="['relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out', settings.notifications.inApp.shoppingList ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700']"
+                      >
+                        <span :class="['pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out', settings.notifications.inApp.shoppingList ? 'translate-x-4' : 'translate-x-0']"/>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

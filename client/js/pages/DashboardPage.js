@@ -22,6 +22,7 @@ import SearchFilters from '../components/SearchFilters.js';
 import BulkImportModal from '../components/BulkImportModal.js';
 import ShoppingListPanel from '../components/ShoppingListPanel.js';
 import AnalyticsWidget from '../components/AnalyticsWidget.js';
+import NotificationCenter from '../components/NotificationCenter.js';
 
 const { ref, computed, onMounted, watch } = Vue;
 
@@ -48,6 +49,7 @@ export default {
     BulkImportModal,
     ShoppingListPanel,
     AnalyticsWidget,
+    NotificationCenter,
   },
 
   setup() {
@@ -753,6 +755,23 @@ export default {
       window.router?.push('/analytics');
     };
 
+    // Handle notification navigation
+    const handleNotificationNavigate = async (type, id) => {
+      if (type === 'settings') {
+        window.router?.push('/settings');
+      } else if (type === 'location' && id) {
+        // Find and open the location
+        try {
+          const response = await window.api.locations.get(id);
+          if (response.success && response.data.location) {
+            handleLocationClick(response.data.location);
+          }
+        } catch (err) {
+          console.error('Failed to navigate to location:', err);
+        }
+      }
+    };
+
     onMounted(() => {
       fetchLocations();
       fetchInvitesAndShares();
@@ -876,6 +895,8 @@ export default {
       closeShoppingList,
       // Analytics
       goToAnalytics,
+      // Notifications
+      handleNotificationNavigate,
     };
   },
 
@@ -890,6 +911,12 @@ export default {
             </div>
 
             <div class="flex items-center gap-4">
+              <!-- Notification Center -->
+              <NotificationCenter
+                :api="window.api"
+                @navigate="handleNotificationNavigate"
+              />
+
               <button
                 @click="goToProfile"
                 class="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
