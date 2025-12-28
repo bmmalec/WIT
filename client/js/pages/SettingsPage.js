@@ -10,11 +10,16 @@ import {
   getCurrentPeriod,
   formatDateRange,
 } from '../utils/expirationPeriods.js';
+import ExportDialog from '../components/ExportDialog.js';
 
 const { ref, reactive, computed, onMounted, watch } = Vue;
 
 export default {
   name: 'SettingsPage',
+
+  components: {
+    ExportDialog,
+  },
 
   setup() {
     const loading = ref(true);
@@ -23,6 +28,11 @@ export default {
     const sendingTestEmail = ref(false);
     const error = ref(null);
     const successMessage = ref('');
+
+    // Export dialog
+    const showExportDialog = ref(false);
+    const locations = ref([]);
+    const categories = ref([]);
 
     // Settings form
     const settings = reactive({
@@ -275,6 +285,31 @@ export default {
       window.router?.push('/profile');
     };
 
+    // Fetch data for export dialog
+    const fetchExportData = async () => {
+      try {
+        const [locRes, catRes] = await Promise.all([
+          window.api.locations.tree(),
+          window.api.categories.getAll(),
+        ]);
+        locations.value = locRes.data.tree || [];
+        categories.value = catRes.data.categories || [];
+      } catch (err) {
+        console.error('Failed to fetch export data:', err);
+      }
+    };
+
+    // Open export dialog
+    const openExportDialog = () => {
+      fetchExportData();
+      showExportDialog.value = true;
+    };
+
+    // Close export dialog
+    const closeExportDialog = () => {
+      showExportDialog.value = false;
+    };
+
     onMounted(fetchSettings);
 
     return {
@@ -299,6 +334,12 @@ export default {
       resetColors,
       saveNotificationSettings,
       sendTestEmail,
+      // Export
+      showExportDialog,
+      locations,
+      categories,
+      openExportDialog,
+      closeExportDialog,
     };
   },
 
@@ -854,6 +895,53 @@ export default {
             </div>
           </div>
 
+          <!-- Data Management Section -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 class="text-lg font-medium text-gray-900 dark:text-white">Data Management</h2>
+              <p class="text-sm text-gray-500 dark:text-gray-400">Export and backup your inventory data</p>
+            </div>
+
+            <div class="px-6 py-4 space-y-4">
+              <!-- Export Data -->
+              <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                    <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 class="text-sm font-medium text-gray-900 dark:text-white">Export Data</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Download items, locations, or full backup</p>
+                  </div>
+                </div>
+                <button
+                  @click="openExportDialog"
+                  class="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                >
+                  Export
+                </button>
+              </div>
+
+              <!-- Info Box -->
+              <div class="flex items-start gap-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div class="text-sm text-yellow-700 dark:text-yellow-300">
+                  <p class="font-medium">Export Options</p>
+                  <ul class="mt-1 list-disc list-inside text-yellow-600 dark:text-yellow-400">
+                    <li>Items CSV - All items with details (name, quantity, expiration, values)</li>
+                    <li>Locations CSV - All locations with hierarchy</li>
+                    <li>Full Backup - Complete JSON backup for restoration</li>
+                    <li>Inventory Report - Summary statistics</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Action Buttons -->
           <div class="flex gap-3">
             <button
@@ -888,6 +976,14 @@ export default {
           </div>
         </div>
       </main>
+
+      <!-- Export Dialog -->
+      <ExportDialog
+        :show="showExportDialog"
+        :locations="locations"
+        :categories="categories"
+        @close="closeExportDialog"
+      />
     </div>
   `,
 };

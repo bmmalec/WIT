@@ -111,6 +111,7 @@ app.use('/api/bulk-sessions', require('./routes/bulkSessions')); // Bulk import 
 app.use('/api/shopping-list', require('./routes/shoppingList')); // Shopping list
 app.use('/api/analytics', require('./routes/analytics')); // Analytics
 app.use('/api/notifications', require('./routes/notifications')); // Notifications
+app.use('/api/export', require('./routes/export')); // Data export
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

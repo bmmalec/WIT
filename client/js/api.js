@@ -861,10 +861,115 @@ const notifications = {
   },
 };
 
+// Data Export API
+const dataExport = {
+  /**
+   * Get export preview (item count)
+   * @param {Object} filters - Export filters
+   */
+  getPreview(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.locationId) params.append('locationId', filters.locationId);
+    if (filters.categoryId) params.append('categoryId', filters.categoryId);
+    if (filters.expirationStatus) params.append('expirationStatus', filters.expirationStatus);
+    if (filters.lowStock) params.append('lowStock', 'true');
+    const query = params.toString();
+    return API.get(`/export/preview${query ? '?' + query : ''}`);
+  },
+
+  /**
+   * Export items as CSV (triggers download)
+   * @param {Object} filters - Export filters
+   */
+  async exportItemsCSV(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.locationId) params.append('locationId', filters.locationId);
+    if (filters.categoryId) params.append('categoryId', filters.categoryId);
+    if (filters.expirationStatus) params.append('expirationStatus', filters.expirationStatus);
+    if (filters.lowStock) params.append('lowStock', 'true');
+    const query = params.toString();
+
+    const response = await fetch(`/api/export/items/csv${query ? '?' + query : ''}`, {
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Export failed');
+    }
+
+    const blob = await response.blob();
+    const filename = response.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'items-export.csv';
+    downloadBlob(blob, filename);
+  },
+
+  /**
+   * Export locations as CSV (triggers download)
+   */
+  async exportLocationsCSV() {
+    const response = await fetch('/api/export/locations/csv', {
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Export failed');
+    }
+
+    const blob = await response.blob();
+    const filename = response.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'locations-export.csv';
+    downloadBlob(blob, filename);
+  },
+
+  /**
+   * Export full backup as JSON (triggers download)
+   */
+  async exportBackup() {
+    const response = await fetch('/api/export/backup', {
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Export failed');
+    }
+
+    const blob = await response.blob();
+    const filename = response.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'backup.json';
+    downloadBlob(blob, filename);
+  },
+
+  /**
+   * Export inventory report (triggers download)
+   */
+  async exportReport() {
+    const response = await fetch('/api/export/report', {
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Export failed');
+    }
+
+    const blob = await response.blob();
+    const filename = response.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'inventory-report.txt';
+    downloadBlob(blob, filename);
+  },
+};
+
+// Helper function to trigger file download
+function downloadBlob(blob, filename) {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+}
+
 // Export for ES modules
-export { API, ApiError, auth, locations, items, categories, shares, identify, bulkSessions, shoppingList, analytics, notifications };
+export { API, ApiError, auth, locations, items, categories, shares, identify, bulkSessions, shoppingList, analytics, notifications, dataExport };
 
 // Also expose globally for non-module scripts
 window.API = API;
 window.ApiError = ApiError;
-window.api = { auth, locations, items, categories, shares, identify, bulkSessions, shoppingList, analytics, notifications };
+window.api = { auth, locations, items, categories, shares, identify, bulkSessions, shoppingList, analytics, notifications, dataExport };
