@@ -240,6 +240,32 @@ exports.discard = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Get consumption history (consumed and discarded items)
+ * @route   GET /api/items/consumption-history
+ * @access  Private
+ * @query   type - 'all', 'consumed', 'discarded'
+ * @query   limit - Max items to return (default 20)
+ * @query   days - Days to look back (default 30)
+ */
+exports.getConsumptionHistory = asyncHandler(async (req, res) => {
+  const { type, limit, days } = req.query;
+
+  const result = await itemService.getConsumptionHistory(req.user._id, {
+    type: type || 'all',
+    limit: limit ? parseInt(limit) : 20,
+    days: days ? parseInt(days) : 30,
+  });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      items: result.items,
+      stats: result.stats,
+    },
+  });
+});
+
+/**
  * @desc    Get items by expiration status/color
  * @route   GET /api/items/expiring
  * @access  Private

@@ -19,10 +19,13 @@ export default {
     },
   },
 
-  emits: ['click', 'edit', 'delete', 'move', 'adjust-quantity'],
+  emits: ['click', 'edit', 'delete', 'move', 'adjust-quantity', 'consume', 'discard'],
 
   setup(props, { emit }) {
     const adjusting = ref(false);
+    const consuming = ref(false);
+    const discarding = ref(false);
+    const showQuickActions = ref(false);
 
     // Get primary image or placeholder
     const imageUrl = computed(() => {
@@ -79,6 +82,47 @@ export default {
       }
     };
 
+    // Handle consume action
+    const handleConsume = async () => {
+      if (consuming.value) return;
+      consuming.value = true;
+
+      try {
+        await window.api.items.consume(props.item._id);
+        window.store?.success(`"${props.item.name}" marked as consumed`);
+        emit('consume', props.item);
+      } catch (err) {
+        console.error('Failed to mark as consumed:', err);
+        window.store?.error(err.message || 'Failed to mark as consumed');
+      } finally {
+        consuming.value = false;
+        showQuickActions.value = false;
+      }
+    };
+
+    // Handle discard action
+    const handleDiscard = async () => {
+      if (discarding.value) return;
+      discarding.value = true;
+
+      try {
+        await window.api.items.discard(props.item._id);
+        window.store?.success(`"${props.item.name}" marked as discarded`);
+        emit('discard', props.item);
+      } catch (err) {
+        console.error('Failed to mark as discarded:', err);
+        window.store?.error(err.message || 'Failed to mark as discarded');
+      } finally {
+        discarding.value = false;
+        showQuickActions.value = false;
+      }
+    };
+
+    // Toggle quick actions panel
+    const toggleQuickActions = () => {
+      showQuickActions.value = !showQuickActions.value;
+    };
+
     return {
       imageUrl,
       categoryInfo,
@@ -87,6 +131,12 @@ export default {
       formatCurrency,
       adjustQuantity,
       adjusting,
+      consuming,
+      discarding,
+      showQuickActions,
+      handleConsume,
+      handleDiscard,
+      toggleQuickActions,
     };
   },
 
@@ -130,6 +180,36 @@ export default {
           class="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
           @click.stop
         >
+          <!-- Consume Button -->
+          <button
+            @click="handleConsume"
+            :disabled="consuming"
+            class="p-1.5 bg-white rounded-full shadow-md hover:bg-green-50"
+            title="Mark as consumed (used up)"
+          >
+            <svg v-if="consuming" class="w-4 h-4 text-green-600 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            <svg v-else class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+          </button>
+          <!-- Discard Button -->
+          <button
+            @click="handleDiscard"
+            :disabled="discarding"
+            class="p-1.5 bg-white rounded-full shadow-md hover:bg-orange-50"
+            title="Mark as discarded (thrown away)"
+          >
+            <svg v-if="discarding" class="w-4 h-4 text-orange-600 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            <svg v-else class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+            </svg>
+          </button>
           <button
             @click="$emit('move', item)"
             class="p-1.5 bg-white rounded-full shadow-md hover:bg-gray-50"

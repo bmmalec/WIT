@@ -680,6 +680,85 @@ class ItemService {
 
     return { items, counts };
   }
+
+  /**
+   * Get consumption history (recently consumed and discarded items)
+   * @param {ObjectId} userId - Requesting user
+   * @param {Object} options - Query options
+   * @param {string} options.type - 'all', 'consumed', 'discarded'
+   * @param {number} options.limit - Max items to return
+   * @param {number} options.days - Days to look back (default 30)
+   * @returns {Promise<Object>} { items, stats }
+   */
+  async getConsumptionHistory(userId, options = {}) {
+    const { type = 'all', limit = 20, days = 30 } = options;
+
+    // Get accessible location IDs
+    const accessibleIds = await permissionService.getAccessibleLocationIds(userId);
+
+    // Calculate date range
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    // Build query
+    const baseQuery = {
+      locationId: { $in: accessibleIds },
+      isActive: false, // Consumed/discarded items are inactive
+    };
+
+    // Filter by type
+    if (type === 'consumed') {
+      baseQuery.consumedAt = { $gte: startDate };
+    } else if (type === 'discarded') {
+      baseQuery.discardedAt = { $gte: startDate };
+    } else {
+      // All - either consumed or discarded
+      baseQuery.$or = [
+        { consumedAt: { $gte: startDate } },
+        { discardedAt: { $gte: startDate } },
+      ];
+    }
+
+    // Fetch items
+    const items = await Item.find(baseQuery)
+      .populate('categoryId', 'name icon color')
+      .populate('locationId', 'name icon type')
+      .sort({ updatedAt: -1 })
+      .limit(limit)
+      .lean();
+
+    // Add type field to each item
+    items.forEach(item => {
+      if (item.consumedAt) {
+        item.historyType = 'consumed';
+        item.historyDate = item.consumedAt;
+      } else if (item.discardedAt) {
+        item.historyType = 'discarded';
+        item.historyDate = item.discardedAt;
+      }
+    });
+
+    // Calculate stats for the period
+    const allConsumed = await Item.countDocuments({
+      locationId: { $in: accessibleIds },
+      consumedAt: { $gte: startDate },
+    });
+
+    const allDiscarded = await Item.countDocuments({
+      locationId: { $in: accessibleIds },
+      discardedAt: { $gte: startDate },
+    });
+
+    return {
+      items,
+      stats: {
+        consumed: allConsumed,
+        discarded: allDiscarded,
+        total: allConsumed + allDiscarded,
+        days,
+      },
+    };
+  }
 }
 
 module.exports = new ItemService();

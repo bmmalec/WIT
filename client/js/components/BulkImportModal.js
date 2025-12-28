@@ -99,6 +99,12 @@ export default {
     const committing = ref(false);
     const commitResult = ref(null);
 
+    // History state (US-9.1.5)
+    const showHistory = ref(false);
+    const sessionHistory = ref([]);
+    const loadingHistory = ref(false);
+    const selectedHistorySession = ref(null);
+
     // Scanning state (US-9.2.1 Quick Sequential Scanning)
     const showScanner = ref(false);
     const scanMode = ref('ai'); // 'ai' or 'barcode'
@@ -644,6 +650,75 @@ export default {
       return `${diffMins}m`;
     };
 
+    // Load session history (US-9.1.5)
+    const loadHistory = async () => {
+      loadingHistory.value = true;
+      try {
+        const response = await window.api.bulkSessions.getHistory({ limit: 20 });
+        sessionHistory.value = response.data.sessions || [];
+      } catch (err) {
+        console.error('Failed to load history:', err);
+        error.value = err.message || 'Failed to load session history';
+      } finally {
+        loadingHistory.value = false;
+      }
+    };
+
+    // Toggle history view
+    const toggleHistory = async () => {
+      if (!showHistory.value) {
+        showHistory.value = true;
+        selectedHistorySession.value = null;
+        await loadHistory();
+      } else {
+        showHistory.value = false;
+        selectedHistorySession.value = null;
+      }
+    };
+
+    // View session details
+    const viewSessionDetails = async (sessionId) => {
+      loadingHistory.value = true;
+      try {
+        const response = await window.api.bulkSessions.get(sessionId);
+        selectedHistorySession.value = response.data.session;
+      } catch (err) {
+        console.error('Failed to load session:', err);
+        error.value = err.message || 'Failed to load session details';
+      } finally {
+        loadingHistory.value = false;
+      }
+    };
+
+    // Close history detail view
+    const closeHistoryDetail = () => {
+      selectedHistorySession.value = null;
+    };
+
+    // Format relative date
+    const formatRelativeDate = (date) => {
+      if (!date) return '';
+      const now = new Date();
+      const d = new Date(date);
+      const diffDays = Math.floor((now - d) / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 0) return 'Today';
+      if (diffDays === 1) return 'Yesterday';
+      if (diffDays < 7) return `${diffDays} days ago`;
+      return d.toLocaleDateString();
+    };
+
+    // Get status badge class
+    const getStatusClass = (status) => {
+      switch (status) {
+        case 'completed': return 'bg-green-100 text-green-700';
+        case 'cancelled': return 'bg-gray-100 text-gray-600';
+        case 'paused': return 'bg-amber-100 text-amber-700';
+        case 'active': return 'bg-blue-100 text-blue-700';
+        default: return 'bg-gray-100 text-gray-600';
+      }
+    };
+
     return {
       session,
       loading,
@@ -659,6 +734,11 @@ export default {
       editingItem,
       committing,
       commitResult,
+      // History state
+      showHistory,
+      sessionHistory,
+      loadingHistory,
+      selectedHistorySession,
       hasSession,
       pendingCount,
       targetLocation,
@@ -690,6 +770,13 @@ export default {
       getCategoryName,
       formatDate,
       formatDuration,
+      formatRelativeDate,
+      getStatusClass,
+      // History methods
+      toggleHistory,
+      loadHistory,
+      viewSessionDetails,
+      closeHistoryDetail,
       // Scanning methods
       startScanning,
       stopScanning,
@@ -717,22 +804,40 @@ export default {
               <span class="text-2xl">📥</span>
               <div>
                 <h2 class="text-xl font-bold text-white">Bulk Import</h2>
-                <p v-if="session" class="text-green-100 text-sm">
+                <p v-if="session && !showHistory" class="text-green-100 text-sm">
                   {{ session.name || 'Active Session' }}
+                </p>
+                <p v-else-if="showHistory" class="text-green-100 text-sm">
+                  Session History
                 </p>
               </div>
             </div>
-            <button @click="close" class="text-white hover:text-green-100">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-            </button>
+            <div class="flex items-center gap-2">
+              <!-- History toggle button -->
+              <button
+                @click="toggleHistory"
+                :class="[
+                  'p-2 rounded-full transition-colors',
+                  showHistory ? 'bg-white text-green-600' : 'text-white hover:bg-white/20'
+                ]"
+                title="Session History"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+              </button>
+              <button @click="close" class="p-2 text-white hover:bg-white/20 rounded-full">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
           </div>
 
           <!-- Content -->
           <div class="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
             <!-- Loading -->
-            <div v-if="loading && !session" class="flex items-center justify-center py-12">
+            <div v-if="loading && !session && !showHistory" class="flex items-center justify-center py-12">
               <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
               <span class="ml-3 text-gray-600">Loading...</span>
             </div>
@@ -743,8 +848,132 @@ export default {
               <button @click="error = null" class="ml-2 text-red-500 hover:text-red-700">&times;</button>
             </div>
 
+            <!-- Session History View (US-9.1.5) -->
+            <div v-if="showHistory && !selectedHistorySession" class="space-y-4">
+              <!-- Loading History -->
+              <div v-if="loadingHistory" class="flex items-center justify-center py-12">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                <span class="ml-3 text-gray-600">Loading history...</span>
+              </div>
+
+              <!-- Empty History -->
+              <div v-else-if="sessionHistory.length === 0" class="text-center py-12">
+                <div class="text-4xl mb-3">📋</div>
+                <p class="text-gray-600">No past sessions found</p>
+                <p class="text-sm text-gray-400 mt-1">Your completed sessions will appear here</p>
+              </div>
+
+              <!-- History List -->
+              <div v-else class="space-y-3">
+                <div
+                  v-for="hist in sessionHistory"
+                  :key="hist._id"
+                  @click="viewSessionDetails(hist._id)"
+                  class="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+                >
+                  <div class="flex items-start justify-between">
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 mb-1">
+                        <p class="font-medium text-gray-900 truncate">
+                          {{ hist.name || 'Bulk Import Session' }}
+                        </p>
+                        <span
+                          :class="['px-2 py-0.5 text-xs font-medium rounded-full', getStatusClass(hist.status)]"
+                        >
+                          {{ hist.status }}
+                        </span>
+                      </div>
+                      <p class="text-sm text-gray-500">
+                        {{ hist.targetLocationId?.name || 'Unknown location' }}
+                      </p>
+                      <p class="text-xs text-gray-400 mt-1">
+                        {{ formatRelativeDate(hist.createdAt) }}
+                        <span v-if="hist.stats?.committed"> · {{ hist.stats.committed }} items imported</span>
+                      </p>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-400 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Session Detail View (read-only for completed sessions) -->
+            <div v-if="showHistory && selectedHistorySession" class="space-y-4">
+              <!-- Back button -->
+              <button
+                @click="closeHistoryDetail"
+                class="flex items-center gap-1 text-gray-600 hover:text-gray-800"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+                Back to History
+              </button>
+
+              <!-- Session Info -->
+              <div class="bg-gray-50 rounded-xl p-4">
+                <div class="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 class="font-semibold text-gray-900">
+                      {{ selectedHistorySession.name || 'Bulk Import Session' }}
+                    </h3>
+                    <p class="text-sm text-gray-500">
+                      {{ selectedHistorySession.targetLocationId?.name }}
+                    </p>
+                  </div>
+                  <span
+                    :class="['px-2 py-1 text-xs font-medium rounded-full', getStatusClass(selectedHistorySession.status)]"
+                  >
+                    {{ selectedHistorySession.status }}
+                  </span>
+                </div>
+
+                <!-- Stats -->
+                <div class="grid grid-cols-3 gap-3 mt-4">
+                  <div class="text-center p-2 bg-white rounded-lg">
+                    <p class="text-xl font-bold text-gray-900">{{ selectedHistorySession.stats?.totalScanned || 0 }}</p>
+                    <p class="text-xs text-gray-500">Scanned</p>
+                  </div>
+                  <div class="text-center p-2 bg-white rounded-lg">
+                    <p class="text-xl font-bold text-green-600">{{ selectedHistorySession.stats?.committed || 0 }}</p>
+                    <p class="text-xs text-green-600">Imported</p>
+                  </div>
+                  <div class="text-center p-2 bg-white rounded-lg">
+                    <p class="text-xl font-bold text-gray-400">{{ selectedHistorySession.stats?.rejected || 0 }}</p>
+                    <p class="text-xs text-gray-500">Rejected</p>
+                  </div>
+                </div>
+
+                <!-- Dates -->
+                <div class="mt-4 pt-4 border-t border-gray-200 space-y-2 text-sm">
+                  <div class="flex justify-between">
+                    <span class="text-gray-500">Started</span>
+                    <span class="text-gray-900">{{ formatDate(selectedHistorySession.startedAt || selectedHistorySession.createdAt) }}</span>
+                  </div>
+                  <div v-if="selectedHistorySession.endedAt" class="flex justify-between">
+                    <span class="text-gray-500">Ended</span>
+                    <span class="text-gray-900">{{ formatDate(selectedHistorySession.endedAt) }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-500">Duration</span>
+                    <span class="text-gray-900">{{ formatDuration(selectedHistorySession.startedAt || selectedHistorySession.createdAt, selectedHistorySession.endedAt) }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Note about completed sessions -->
+              <div v-if="selectedHistorySession.status === 'completed' || selectedHistorySession.status === 'cancelled'" class="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p class="text-sm text-blue-700">
+                  <span class="font-medium">Note:</span> This session is {{ selectedHistorySession.status }} and cannot be edited.
+                  <span v-if="selectedHistorySession.status === 'completed'">Items have been added to your inventory.</span>
+                </p>
+              </div>
+            </div>
+
             <!-- Start Session Form -->
-            <div v-if="showStartForm && !session" class="space-y-4">
+            <div v-if="showStartForm && !session && !showHistory" class="space-y-4">
               <h3 class="text-lg font-semibold text-gray-900">Start New Session</h3>
               <p class="text-gray-600 text-sm">Select a target location where scanned items will be added.</p>
 
@@ -795,7 +1024,7 @@ export default {
             </div>
 
             <!-- Active Session -->
-            <div v-if="session" class="space-y-6">
+            <div v-if="session && !showHistory" class="space-y-6">
               <!-- Paused Banner (US-9.1.4) -->
               <div v-if="session.status === 'paused'" class="flex items-center justify-between p-4 bg-amber-50 border border-amber-200 rounded-lg">
                 <div class="flex items-center gap-3">
@@ -940,7 +1169,7 @@ export default {
             </div>
 
             <!-- Commit Result (US-9.3.5 Bulk Import Summary) -->
-            <div v-if="commitResult" class="py-6">
+            <div v-if="commitResult && !showHistory" class="py-6">
               <!-- Success Header -->
               <div class="text-center mb-6">
                 <div class="text-5xl mb-3">🎉</div>
@@ -1003,7 +1232,7 @@ export default {
           </div>
 
           <!-- Footer (for active session) -->
-          <div v-if="session && !commitResult" class="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
+          <div v-if="session && !commitResult && !showHistory" class="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
             <div class="flex items-center gap-2">
               <button
                 @click="cancelSession"

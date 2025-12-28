@@ -140,6 +140,7 @@ router.get('/search', searchRules, validate, itemController.search);
 router.get('/autocomplete', itemController.autocomplete);
 router.get('/low-stock', itemController.getLowStock);
 router.get('/expiring', itemController.getByExpirationStatus);
+router.get('/consumption-history', itemController.getConsumptionHistory);
 router.get('/recent-searches', itemController.getRecentSearches);
 router.delete('/recent-searches', itemController.clearRecentSearches);
 

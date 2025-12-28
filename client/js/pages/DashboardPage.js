@@ -14,6 +14,8 @@ import ItemForm from '../components/ItemForm.js';
 import MoveItemDialog from '../components/MoveItemDialog.js';
 import ExpirationFilterPanel from '../components/ExpirationFilterPanel.js';
 import ExpirationWidget from '../components/ExpirationWidget.js';
+import LowStockWidget from '../components/LowStockWidget.js';
+import ConsumptionHistoryWidget from '../components/ConsumptionHistoryWidget.js';
 import SearchBar from '../components/SearchBar.js';
 import SearchResults from '../components/SearchResults.js';
 import SearchFilters from '../components/SearchFilters.js';
@@ -36,6 +38,8 @@ export default {
     MoveItemDialog,
     ExpirationFilterPanel,
     ExpirationWidget,
+    LowStockWidget,
+    ConsumptionHistoryWidget,
     SearchBar,
     SearchResults,
     SearchFilters,
@@ -347,6 +351,59 @@ export default {
       }
       // Refresh locations to update item counts
       await fetchLocations();
+    };
+
+    // Handle item consumed
+    const handleItemConsumed = async (item) => {
+      // Refresh items in current location (item is now inactive)
+      if (selectedLocation.value) {
+        await fetchItems(selectedLocation.value._id);
+      }
+      // Refresh locations to update item counts
+      await fetchLocations();
+    };
+
+    // Handle item discarded
+    const handleItemDiscarded = async (item) => {
+      // Refresh items in current location (item is now inactive)
+      if (selectedLocation.value) {
+        await fetchItems(selectedLocation.value._id);
+      }
+      // Refresh locations to update item counts
+      await fetchLocations();
+    };
+
+    // Handle low stock item click
+    const handleLowStockItemClick = async (item) => {
+      // Navigate to the item's location and open the item for editing
+      if (item.locationId) {
+        try {
+          const locId = item.locationId._id || item.locationId;
+          const response = await window.api.locations.get(locId);
+          selectedLocation.value = response.data.location;
+          showDetailPanel.value = true;
+
+          // Fetch breadcrumb and items
+          const [breadcrumbRes] = await Promise.all([
+            window.api.locations.getBreadcrumb(selectedLocation.value._id),
+            fetchItems(selectedLocation.value._id),
+          ]);
+          selectedAncestors.value = breadcrumbRes.data.ancestors || [];
+
+          // Open item for editing
+          editingItem.value = item;
+          showItemForm.value = true;
+        } catch (err) {
+          console.error('Failed to navigate to item:', err);
+          // Just open the item form directly
+          editingItem.value = item;
+          showItemForm.value = true;
+        }
+      } else {
+        // Just open the item form
+        editingItem.value = item;
+        showItemForm.value = true;
+      }
     };
 
     // Open expiration panel
@@ -755,6 +812,11 @@ export default {
       openMoveDialog,
       closeMoveDialog,
       handleItemMoved,
+      // Consume/Discard handlers
+      handleItemConsumed,
+      handleItemDiscarded,
+      // Low stock handler
+      handleLowStockItemClick,
       // Expiration panel
       showExpirationPanel,
       expirationPanelFilter,
@@ -1007,6 +1069,10 @@ export default {
             @click="openExpirationPanel()"
             @filter="handleWidgetFilter"
           />
+          <LowStockWidget
+            @item-click="handleLowStockItemClick"
+          />
+          <ConsumptionHistoryWidget />
         </div>
 
         <!-- My Locations -->
@@ -1339,6 +1405,8 @@ export default {
                       @delete="openDeleteItemConfirm(item)"
                       @move="openMoveDialog(item)"
                       @adjust-quantity="handleQuantityAdjust"
+                      @consume="handleItemConsumed"
+                      @discard="handleItemDiscarded"
                     />
                   </div>
                 </div>

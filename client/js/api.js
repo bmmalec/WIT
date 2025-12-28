@@ -341,6 +341,22 @@ const items = {
   },
 
   /**
+   * Get consumption history (consumed and discarded items)
+   * @param {Object} options - Query options
+   * @param {string} options.type - 'all', 'consumed', 'discarded'
+   * @param {number} options.limit - Max items to return
+   * @param {number} options.days - Days to look back
+   */
+  getConsumptionHistory(options = {}) {
+    const params = new URLSearchParams();
+    if (options.type) params.append('type', options.type);
+    if (options.limit) params.append('limit', options.limit);
+    if (options.days) params.append('days', options.days);
+    const queryString = params.toString();
+    return API.get(`/items/consumption-history${queryString ? `?${queryString}` : ''}`);
+  },
+
+  /**
    * Upload images for an item
    * @param {string} id - Item ID
    * @param {FileList|File[]} files - Files to upload
