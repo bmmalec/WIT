@@ -21,6 +21,7 @@ import SearchResults from '../components/SearchResults.js';
 import SearchFilters from '../components/SearchFilters.js';
 import BulkImportModal from '../components/BulkImportModal.js';
 import ShoppingListPanel from '../components/ShoppingListPanel.js';
+import AnalyticsWidget from '../components/AnalyticsWidget.js';
 
 const { ref, computed, onMounted, watch } = Vue;
 
@@ -46,6 +47,7 @@ export default {
     SearchFilters,
     BulkImportModal,
     ShoppingListPanel,
+    AnalyticsWidget,
   },
 
   setup() {
@@ -746,6 +748,11 @@ export default {
       showShoppingList.value = false;
     };
 
+    // Navigate to analytics page
+    const goToAnalytics = () => {
+      window.router?.push('/analytics');
+    };
+
     onMounted(() => {
       fetchLocations();
       fetchInvitesAndShares();
@@ -867,6 +874,8 @@ export default {
       showShoppingList,
       openShoppingList,
       closeShoppingList,
+      // Analytics
+      goToAnalytics,
     };
   },
 
@@ -1097,7 +1106,8 @@ export default {
         </div>
 
         <!-- Dashboard Widgets -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <AnalyticsWidget @view-details="goToAnalytics" />
           <ExpirationWidget
             @click="openExpirationPanel()"
             @filter="handleWidgetFilter"

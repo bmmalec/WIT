@@ -19,6 +19,7 @@ import ChangePasswordPage from './pages/ChangePasswordPage.js';
 import SettingsPage from './pages/SettingsPage.js';
 import AcceptInvitePage from './pages/AcceptInvitePage.js';
 import ScanPage from './pages/ScanPage.js';
+import AnalyticsPage from './pages/AnalyticsPage.js';
 
 const { createApp, ref, onMounted, watch } = Vue;
 
@@ -125,6 +126,11 @@ const routes = [
     path: '/invite/:token',
     component: AcceptInvitePage,
     meta: {}, // Can be accessed by anyone, page handles auth check
+  },
+  {
+    path: '/analytics',
+    component: AnalyticsPage,
+    meta: { requiresAuth: true },
   },
   {
     path: '*',

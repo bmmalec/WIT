@@ -707,10 +707,72 @@ const shoppingList = {
   },
 };
 
+// Analytics API
+const analytics = {
+  /**
+   * Get overview statistics
+   */
+  getOverview() {
+    return API.get('/analytics/overview');
+  },
+
+  /**
+   * Get items breakdown by category
+   */
+  getByCategory() {
+    return API.get('/analytics/by-category');
+  },
+
+  /**
+   * Get items breakdown by location
+   */
+  getByLocation() {
+    return API.get('/analytics/by-location');
+  },
+
+  /**
+   * Get expiration forecast
+   * @param {number} days - Number of days to forecast
+   */
+  getExpirationForecast(days = 30) {
+    return API.get(`/analytics/expiration-forecast?days=${days}`);
+  },
+
+  /**
+   * Get consumption trends
+   * @param {number} days - Number of days to analyze
+   */
+  getConsumptionTrends(days = 30) {
+    return API.get(`/analytics/consumption-trends?days=${days}`);
+  },
+
+  /**
+   * Get storage type distribution
+   */
+  getStorageDistribution() {
+    return API.get('/analytics/storage-distribution');
+  },
+
+  /**
+   * Get value distribution by location
+   */
+  getValueDistribution() {
+    return API.get('/analytics/value-distribution');
+  },
+
+  /**
+   * Get all analytics data in one request
+   * @param {number} days - Number of days for time-based analytics
+   */
+  getAll(days = 30) {
+    return API.get(`/analytics/all?days=${days}`);
+  },
+};
+
 // Export for ES modules
-export { API, ApiError, auth, locations, items, categories, shares, identify, bulkSessions, shoppingList };
+export { API, ApiError, auth, locations, items, categories, shares, identify, bulkSessions, shoppingList, analytics };
 
 // Also expose globally for non-module scripts
 window.API = API;
 window.ApiError = ApiError;
-window.api = { auth, locations, items, categories, shares, identify, bulkSessions, shoppingList };
+window.api = { auth, locations, items, categories, shares, identify, bulkSessions, shoppingList, analytics };
