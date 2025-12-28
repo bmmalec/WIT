@@ -20,6 +20,7 @@ import SearchBar from '../components/SearchBar.js';
 import SearchResults from '../components/SearchResults.js';
 import SearchFilters from '../components/SearchFilters.js';
 import BulkImportModal from '../components/BulkImportModal.js';
+import ShoppingListPanel from '../components/ShoppingListPanel.js';
 
 const { ref, computed, onMounted, watch } = Vue;
 
@@ -44,6 +45,7 @@ export default {
     SearchResults,
     SearchFilters,
     BulkImportModal,
+    ShoppingListPanel,
   },
 
   setup() {
@@ -97,6 +99,9 @@ export default {
     // Bulk import state
     const activeBulkSession = ref(null);
     const showBulkImport = ref(false);
+
+    // Shopping list panel
+    const showShoppingList = ref(false);
 
     // Expiration filter panel
     const showExpirationPanel = ref(false);
@@ -731,6 +736,16 @@ export default {
       activeBulkSession.value = null;
     };
 
+    // Open shopping list panel
+    const openShoppingList = () => {
+      showShoppingList.value = true;
+    };
+
+    // Close shopping list panel
+    const closeShoppingList = () => {
+      showShoppingList.value = false;
+    };
+
     onMounted(() => {
       fetchLocations();
       fetchInvitesAndShares();
@@ -848,6 +863,10 @@ export default {
       handleBulkSessionStarted,
       handleBulkSessionCommitted,
       handleBulkSessionCancelled,
+      // Shopping list
+      showShoppingList,
+      openShoppingList,
+      closeShoppingList,
     };
   },
 
@@ -1026,9 +1045,22 @@ export default {
             <p v-else-if="activeBulkSession" class="text-xs text-green-600 mt-2">Session active - {{ activeBulkSession.pendingCount }} pending</p>
           </div>
 
-          <div class="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow relative">
-            <div class="text-3xl mb-3">🔍</div>
-            <h3 class="font-semibold text-gray-900 mb-1">Search Items</h3>
+          <div
+            @click="openShoppingList"
+            class="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow cursor-pointer border-2 border-dashed border-gray-200 hover:border-green-400"
+          >
+            <div class="text-3xl mb-3">🛒</div>
+            <h3 class="font-semibold text-gray-900 mb-1">Shopping List</h3>
+            <p class="text-sm text-gray-600">Track items you need to buy and get suggestions.</p>
+          </div>
+        </div>
+
+        <!-- Search Section -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+          <div class="flex items-start gap-4">
+            <div class="text-3xl">🔍</div>
+            <div class="flex-1">
+              <h3 class="font-semibold text-gray-900 mb-1">Search Items</h3>
             <p class="text-sm text-gray-600 mb-3">Find items quickly with smart search.</p>
             <SearchBar
               placeholder="Search by name, brand, tags..."
@@ -1060,6 +1092,7 @@ export default {
               @close="handleSearchClear"
               @search="handleSearchSuggestion"
             />
+            </div>
           </div>
         </div>
 
@@ -1601,6 +1634,12 @@ export default {
         @session-started="handleBulkSessionStarted"
         @session-committed="handleBulkSessionCommitted"
         @session-cancelled="handleBulkSessionCancelled"
+      />
+
+      <!-- Shopping List Panel -->
+      <ShoppingListPanel
+        :show="showShoppingList"
+        @close="closeShoppingList"
       />
     </div>
   `,

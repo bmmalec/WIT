@@ -108,6 +108,7 @@ app.use('/api/items', require('./routes/images')); // Image upload routes (/api/
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/identify', require('./routes/identify')); // AI identification routes
 app.use('/api/bulk-sessions', require('./routes/bulkSessions')); // Bulk import sessions
+app.use('/api/shopping-list', require('./routes/shoppingList')); // Shopping list
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

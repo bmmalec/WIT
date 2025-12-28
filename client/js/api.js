@@ -632,10 +632,85 @@ const bulkSessions = {
   },
 };
 
+// Shopping List API
+const shoppingList = {
+  /**
+   * Get user's shopping list
+   */
+  getList() {
+    return API.get('/shopping-list');
+  },
+
+  /**
+   * Get shopping suggestions (consumed, low stock, expired items)
+   */
+  getSuggestions() {
+    return API.get('/shopping-list/suggestions');
+  },
+
+  /**
+   * Add item to shopping list
+   * @param {Object} data - Item data
+   */
+  addItem(data) {
+    return API.post('/shopping-list/items', data);
+  },
+
+  /**
+   * Update item in shopping list
+   * @param {string} itemId - Item ID
+   * @param {Object} updates - Updates to apply
+   */
+  updateItem(itemId, updates) {
+    return API.put(`/shopping-list/items/${itemId}`, updates);
+  },
+
+  /**
+   * Remove item from shopping list
+   * @param {string} itemId - Item ID
+   */
+  removeItem(itemId) {
+    return API.delete(`/shopping-list/items/${itemId}`);
+  },
+
+  /**
+   * Mark item as purchased
+   * @param {string} itemId - Item ID
+   * @param {Object} options - Options (addToInventory, actualPrice)
+   */
+  markPurchased(itemId, options = {}) {
+    return API.put(`/shopping-list/items/${itemId}/purchased`, options);
+  },
+
+  /**
+   * Mark item as skipped
+   * @param {string} itemId - Item ID
+   */
+  markSkipped(itemId) {
+    return API.put(`/shopping-list/items/${itemId}/skipped`);
+  },
+
+  /**
+   * Add item from suggestion
+   * @param {string} itemId - Source item ID
+   * @param {string} source - Suggestion source type
+   */
+  addFromSuggestion(itemId, source) {
+    return API.post(`/shopping-list/suggestions/${itemId}`, { source });
+  },
+
+  /**
+   * Clear purchased items
+   */
+  clearPurchased() {
+    return API.delete('/shopping-list/purchased');
+  },
+};
+
 // Export for ES modules
-export { API, ApiError, auth, locations, items, categories, shares, identify, bulkSessions };
+export { API, ApiError, auth, locations, items, categories, shares, identify, bulkSessions, shoppingList };
 
 // Also expose globally for non-module scripts
 window.API = API;
 window.ApiError = ApiError;
-window.api = { auth, locations, items, categories, shares, identify, bulkSessions };
+window.api = { auth, locations, items, categories, shares, identify, bulkSessions, shoppingList };
