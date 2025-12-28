@@ -1,7 +1,15 @@
 /**
  * SettingsPage Component
- * Page for configuring user settings (theme, default view, notifications)
+ * Page for configuring user settings (theme, default view, notifications, expiration periods)
  */
+
+import {
+  PERIOD_CONFIGS,
+  DEFAULT_COLORS,
+  generatePeriodSchedule,
+  getCurrentPeriod,
+  formatDateRange,
+} from '../utils/expirationPeriods.js';
 
 const { ref, reactive, computed, onMounted, watch } = Vue;
 
@@ -19,10 +27,41 @@ export default {
       theme: 'system',
       defaultView: 'grid',
       notifications: true,
+      expirationPeriod: {
+        periodType: 'quarterly',
+        startDate: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0],
+        colorScheme: [...DEFAULT_COLORS],
+        usePatterns: false,
+      },
     });
+
+    // Period type options
+    const periodTypes = Object.entries(PERIOD_CONFIGS).map(([value, config]) => ({
+      value,
+      label: config.label,
+    }));
 
     // Original settings for comparison
     const originalSettings = ref(null);
+
+    // Computed: Current period info
+    const currentPeriod = computed(() => {
+      return getCurrentPeriod(
+        new Date(settings.expirationPeriod.startDate),
+        settings.expirationPeriod.periodType,
+        settings.expirationPeriod.colorScheme
+      );
+    });
+
+    // Computed: Period schedule preview
+    const periodSchedule = computed(() => {
+      return generatePeriodSchedule(
+        new Date(settings.expirationPeriod.startDate),
+        settings.expirationPeriod.periodType,
+        settings.expirationPeriod.colorScheme,
+        8 // Show 8 periods
+      );
+    });
 
     // Check if settings have changed
     const hasChanges = computed(() => {
@@ -30,7 +69,11 @@ export default {
       return (
         settings.theme !== originalSettings.value.theme ||
         settings.defaultView !== originalSettings.value.defaultView ||
-        settings.notifications !== originalSettings.value.notifications
+        settings.notifications !== originalSettings.value.notifications ||
+        settings.expirationPeriod.periodType !== originalSettings.value.expirationPeriod?.periodType ||
+        settings.expirationPeriod.startDate !== originalSettings.value.expirationPeriod?.startDate ||
+        settings.expirationPeriod.usePatterns !== originalSettings.value.expirationPeriod?.usePatterns ||
+        JSON.stringify(settings.expirationPeriod.colorScheme) !== JSON.stringify(originalSettings.value.expirationPeriod?.colorScheme)
       );
     });
 
@@ -47,7 +90,20 @@ export default {
         settings.defaultView = user.settings?.defaultView || 'grid';
         settings.notifications = user.settings?.notifications !== false;
 
-        originalSettings.value = { ...settings };
+        // Load expiration period settings
+        const expSettings = user.settings?.expirationPeriod;
+        if (expSettings) {
+          settings.expirationPeriod.periodType = expSettings.periodType || 'quarterly';
+          settings.expirationPeriod.startDate = expSettings.startDate
+            ? new Date(expSettings.startDate).toISOString().split('T')[0]
+            : new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+          settings.expirationPeriod.colorScheme = expSettings.colorScheme?.length === 6
+            ? [...expSettings.colorScheme]
+            : [...DEFAULT_COLORS];
+          settings.expirationPeriod.usePatterns = expSettings.usePatterns || false;
+        }
+
+        originalSettings.value = JSON.parse(JSON.stringify(settings));
 
         // Apply current theme
         if (window.applyTheme) {
@@ -84,6 +140,12 @@ export default {
           theme: settings.theme,
           defaultView: settings.defaultView,
           notifications: settings.notifications,
+          expirationPeriod: {
+            periodType: settings.expirationPeriod.periodType,
+            startDate: new Date(settings.expirationPeriod.startDate),
+            colorScheme: settings.expirationPeriod.colorScheme,
+            usePatterns: settings.expirationPeriod.usePatterns,
+          },
         });
 
         // Update store
@@ -91,7 +153,7 @@ export default {
           window.store.setUser(response.data.user);
         }
 
-        originalSettings.value = { ...settings };
+        originalSettings.value = JSON.parse(JSON.stringify(settings));
         successMessage.value = 'Settings saved successfully';
 
         // Clear success message after 3 seconds
@@ -112,7 +174,26 @@ export default {
         settings.theme = originalSettings.value.theme;
         settings.defaultView = originalSettings.value.defaultView;
         settings.notifications = originalSettings.value.notifications;
+        settings.expirationPeriod.periodType = originalSettings.value.expirationPeriod?.periodType || 'quarterly';
+        settings.expirationPeriod.startDate = originalSettings.value.expirationPeriod?.startDate || new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+        settings.expirationPeriod.colorScheme = originalSettings.value.expirationPeriod?.colorScheme ? [...originalSettings.value.expirationPeriod.colorScheme] : [...DEFAULT_COLORS];
+        settings.expirationPeriod.usePatterns = originalSettings.value.expirationPeriod?.usePatterns || false;
       }
+    };
+
+    // Update a color in the scheme
+    const updateColor = (index, color) => {
+      settings.expirationPeriod.colorScheme[index].color = color;
+    };
+
+    // Update a color name
+    const updateColorName = (index, name) => {
+      settings.expirationPeriod.colorScheme[index].name = name;
+    };
+
+    // Reset colors to default
+    const resetColors = () => {
+      settings.expirationPeriod.colorScheme = [...DEFAULT_COLORS];
     };
 
     // Go back
@@ -129,10 +210,17 @@ export default {
       successMessage,
       settings,
       hasChanges,
+      periodTypes,
+      currentPeriod,
+      periodSchedule,
+      formatDateRange,
       handleSave,
       handleReset,
       handleBack,
       fetchSettings,
+      updateColor,
+      updateColorName,
+      resetColors,
     };
   },
 
@@ -363,6 +451,161 @@ export default {
                     ]"
                   />
                 </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Expiration Period Section -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 class="text-lg font-medium text-gray-900 dark:text-white">Expiration Tracking</h2>
+              <p class="text-sm text-gray-500 dark:text-gray-400">Configure color-coded expiration periods for perishable items</p>
+            </div>
+
+            <div class="px-6 py-4 space-y-6">
+              <!-- Current Period Display -->
+              <div class="p-4 rounded-lg border-2" :style="{ borderColor: currentPeriod.color, backgroundColor: currentPeriod.color + '10' }">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold" :style="{ backgroundColor: currentPeriod.color }">
+                    {{ currentPeriod.colorName.charAt(0) }}
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Current Period</p>
+                    <p class="font-semibold text-gray-900 dark:text-white">{{ currentPeriod.label }} - {{ currentPeriod.colorName }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Period Type -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Period Type
+                </label>
+                <select v-model="settings.expirationPeriod.periodType" class="input w-full">
+                  <option v-for="type in periodTypes" :key="type.value" :value="type.value">
+                    {{ type.label }}
+                  </option>
+                </select>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  How often expiration periods rotate
+                </p>
+              </div>
+
+              <!-- Start Date -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  v-model="settings.expirationPeriod.startDate"
+                  class="input w-full max-w-xs"
+                />
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  When the first period begins (typically start of year)
+                </p>
+              </div>
+
+              <!-- Color Scheme -->
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Color Scheme (6 colors)
+                  </label>
+                  <button type="button" @click="resetColors" class="text-sm text-blue-600 hover:text-blue-700">
+                    Reset to defaults
+                  </button>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div v-for="(colorItem, index) in settings.expirationPeriod.colorScheme" :key="index" class="flex items-center gap-2 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <input
+                      type="color"
+                      :value="colorItem.color"
+                      @input="updateColor(index, $event.target.value)"
+                      class="w-8 h-8 rounded cursor-pointer border-0"
+                    />
+                    <input
+                      type="text"
+                      :value="colorItem.name"
+                      @input="updateColorName(index, $event.target.value)"
+                      class="flex-1 text-sm border-0 bg-transparent focus:ring-0 p-0 text-gray-900 dark:text-white"
+                      :placeholder="'Color ' + (index + 1)"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Use Patterns Toggle -->
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-sm font-medium text-gray-900 dark:text-white">Color-blind patterns</h3>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">Add patterns to distinguish colors</p>
+                </div>
+                <button
+                  type="button"
+                  @click="settings.expirationPeriod.usePatterns = !settings.expirationPeriod.usePatterns"
+                  :class="[
+                    'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+                    settings.expirationPeriod.usePatterns ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                  ]"
+                >
+                  <span
+                    :class="[
+                      'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                      settings.expirationPeriod.usePatterns ? 'translate-x-5' : 'translate-x-0'
+                    ]"
+                  />
+                </button>
+              </div>
+
+              <!-- Period Schedule Preview -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Period Schedule Preview
+                </label>
+                <div class="overflow-x-auto">
+                  <table class="min-w-full text-sm">
+                    <thead>
+                      <tr class="border-b border-gray-200 dark:border-gray-700">
+                        <th class="text-left py-2 px-3 font-medium text-gray-500 dark:text-gray-400">Period</th>
+                        <th class="text-left py-2 px-3 font-medium text-gray-500 dark:text-gray-400">Date Range</th>
+                        <th class="text-left py-2 px-3 font-medium text-gray-500 dark:text-gray-400">Color</th>
+                        <th class="text-left py-2 px-3 font-medium text-gray-500 dark:text-gray-400">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-for="period in periodSchedule"
+                        :key="period.index"
+                        :class="[
+                          'border-b border-gray-100 dark:border-gray-800',
+                          period.isCurrent ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                        ]"
+                      >
+                        <td class="py-2 px-3 text-gray-900 dark:text-white">{{ period.label }}</td>
+                        <td class="py-2 px-3 text-gray-600 dark:text-gray-400 text-xs">{{ formatDateRange(period.start, period.end) }}</td>
+                        <td class="py-2 px-3">
+                          <div class="flex items-center gap-2">
+                            <span class="w-4 h-4 rounded" :style="{ backgroundColor: period.color }"></span>
+                            <span class="text-gray-700 dark:text-gray-300">{{ period.colorName }}</span>
+                          </div>
+                        </td>
+                        <td class="py-2 px-3">
+                          <span
+                            :class="[
+                              'inline-flex px-2 py-0.5 rounded-full text-xs font-medium',
+                              period.status === 'expired' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                              period.status === 'current' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                              'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                            ]"
+                          >
+                            {{ period.status === 'expired' ? 'Expired' : period.status === 'current' ? 'Current' : 'Future' }}
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>

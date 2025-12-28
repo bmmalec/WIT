@@ -51,6 +51,46 @@ const userSchema = new mongoose.Schema(
         type: Boolean,
         default: true,
       },
+      // Expiration period settings
+      expirationPeriod: {
+        // Period type
+        periodType: {
+          type: String,
+          enum: ['monthly', 'quarterly', 'semi-annual', 'annual'],
+          default: 'quarterly',
+        },
+        // Start date for first period (defaults to start of current year)
+        startDate: {
+          type: Date,
+          default: () => new Date(new Date().getFullYear(), 0, 1),
+        },
+        // 6-color scheme for rotating periods
+        colorScheme: {
+          type: [{
+            color: {
+              type: String,
+              default: '#3B82F6', // blue
+            },
+            name: {
+              type: String,
+              default: 'Blue',
+            },
+          }],
+          default: [
+            { color: '#EF4444', name: 'Red' },
+            { color: '#F97316', name: 'Orange' },
+            { color: '#EAB308', name: 'Yellow' },
+            { color: '#22C55E', name: 'Green' },
+            { color: '#3B82F6', name: 'Blue' },
+            { color: '#8B5CF6', name: 'Purple' },
+          ],
+        },
+        // Enable pattern overlays for color-blind accessibility
+        usePatterns: {
+          type: Boolean,
+          default: false,
+        },
+      },
     },
 
     // Subscription tracking
@@ -68,6 +108,22 @@ const userSchema = new mongoose.Schema(
         type: Date,
         default: null,
       },
+    },
+
+    // Recent search history (last 10 searches)
+    recentSearches: {
+      type: [{
+        query: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        searchedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      }],
+      default: [],
     },
 
     // Login attempt tracking for security
@@ -200,6 +256,37 @@ userSchema.methods.generatePasswordResetToken = function () {
 userSchema.methods.clearPasswordResetToken = function () {
   this.passwordResetToken = undefined;
   this.passwordResetExpires = undefined;
+};
+
+// Instance method: Add search to recent history
+userSchema.methods.addRecentSearch = async function (query) {
+  if (!query || query.trim().length < 2) return;
+
+  const trimmedQuery = query.trim().toLowerCase();
+
+  // Remove existing entry if duplicate
+  this.recentSearches = this.recentSearches.filter(
+    s => s.query.toLowerCase() !== trimmedQuery
+  );
+
+  // Add new search at the beginning
+  this.recentSearches.unshift({
+    query: query.trim(),
+    searchedAt: new Date(),
+  });
+
+  // Keep only last 10 searches
+  if (this.recentSearches.length > 10) {
+    this.recentSearches = this.recentSearches.slice(0, 10);
+  }
+
+  return this.save();
+};
+
+// Instance method: Clear recent search history
+userSchema.methods.clearRecentSearches = async function () {
+  this.recentSearches = [];
+  return this.save();
 };
 
 // Static method: Find user by reset token

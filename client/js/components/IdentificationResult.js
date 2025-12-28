@@ -234,7 +234,7 @@ export default {
             <div v-if="result.valueEstimate" class="flex items-center gap-1">
               <span class="text-gray-500">Est. Value:</span>
               <span class="font-medium text-green-600">
-                ${{ result.valueEstimate.low }} - ${{ result.valueEstimate.high }}
+                {{ '$' + result.valueEstimate.low }} - {{ '$' + result.valueEstimate.high }}
               </span>
             </div>
           </div>

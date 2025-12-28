@@ -1,4 +1,5 @@
 const itemService = require('../services/itemService');
+const User = require('../models/User');
 const { asyncHandler } = require('../middleware/errorHandler');
 
 /**
@@ -59,24 +60,64 @@ exports.getByLocation = asyncHandler(async (req, res) => {
  * @access  Private
  */
 exports.search = asyncHandler(async (req, res) => {
-  const { q, limit } = req.query;
+  const { q, limit, locationId, categoryId, expirationStatus, storageType } = req.query;
 
   if (!q || q.trim().length === 0) {
     return res.status(200).json({
       success: true,
-      data: { items: [] },
+      data: {
+        items: [],
+        fuzzyMatches: 0,
+        suggestions: [],
+        searchMethod: 'none',
+      },
       count: 0,
     });
   }
 
-  const items = await itemService.search(req.user._id, q, {
+  const result = await itemService.search(req.user._id, q, {
     limit: limit ? parseInt(limit) : 50,
+    locationId,
+    categoryId,
+    expirationStatus,
+    storageType,
+  });
+
+  // Save to recent searches (async, don't wait)
+  req.user.addRecentSearch(q).catch(err => {
+    console.error('Failed to save recent search:', err);
   });
 
   res.status(200).json({
     success: true,
-    data: { items },
-    count: items.length,
+    data: {
+      items: result.items,
+      fuzzyMatches: result.fuzzyMatches,
+      suggestions: result.suggestions,
+      synonymsUsed: result.synonymsUsed || [],
+      searchMethod: result.searchMethod,
+    },
+    count: result.items.length,
+  });
+});
+
+/**
+ * @desc    Get autocomplete suggestions
+ * @route   GET /api/items/autocomplete
+ * @access  Private
+ * @query   q - Search query (min 2 chars)
+ * @query   limit - Max suggestions (default 10)
+ */
+exports.autocomplete = asyncHandler(async (req, res) => {
+  const { q, limit } = req.query;
+
+  const result = await itemService.autocomplete(req.user._id, q, {
+    limit: limit ? parseInt(limit) : 10,
+  });
+
+  res.status(200).json({
+    success: true,
+    data: result,
   });
 });
 
@@ -167,5 +208,89 @@ exports.getLowStock = asyncHandler(async (req, res) => {
     success: true,
     data: { items },
     count: items.length,
+  });
+});
+
+/**
+ * @desc    Mark item as consumed
+ * @route   PUT /api/items/:id/consume
+ * @access  Private (Contributor+)
+ */
+exports.consume = asyncHandler(async (req, res) => {
+  await itemService.consume(req.user._id, req.params.id);
+
+  res.status(200).json({
+    success: true,
+    message: 'Item marked as consumed',
+  });
+});
+
+/**
+ * @desc    Mark item as discarded
+ * @route   PUT /api/items/:id/discard
+ * @access  Private (Contributor+)
+ */
+exports.discard = asyncHandler(async (req, res) => {
+  await itemService.discard(req.user._id, req.params.id);
+
+  res.status(200).json({
+    success: true,
+    message: 'Item marked as discarded',
+  });
+});
+
+/**
+ * @desc    Get items by expiration status/color
+ * @route   GET /api/items/expiring
+ * @access  Private
+ * @query   status - 'expired', 'current', 'expiring-soon', 'future', 'all'
+ * @query   periodIndex - Specific period index to filter by
+ * @query   currentPeriodIndex - Current period index for status calculation
+ */
+exports.getByExpirationStatus = asyncHandler(async (req, res) => {
+  const { status, periodIndex, currentPeriodIndex } = req.query;
+
+  const result = await itemService.getByExpirationStatus(req.user._id, {
+    status: status || 'all',
+    periodIndex: periodIndex !== undefined ? parseInt(periodIndex) : undefined,
+    currentPeriodIndex: currentPeriodIndex !== undefined ? parseInt(currentPeriodIndex) : undefined,
+  });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      items: result.items,
+      counts: result.counts,
+    },
+  });
+});
+
+/**
+ * @desc    Get recent searches for current user
+ * @route   GET /api/items/recent-searches
+ * @access  Private
+ */
+exports.getRecentSearches = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).select('recentSearches');
+
+  res.status(200).json({
+    success: true,
+    data: {
+      searches: user?.recentSearches || [],
+    },
+  });
+});
+
+/**
+ * @desc    Clear recent search history
+ * @route   DELETE /api/items/recent-searches
+ * @access  Private
+ */
+exports.clearRecentSearches = asyncHandler(async (req, res) => {
+  await req.user.clearRecentSearches();
+
+  res.status(200).json({
+    success: true,
+    message: 'Search history cleared',
   });
 });

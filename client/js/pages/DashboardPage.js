@@ -12,6 +12,11 @@ import ShareList from '../components/ShareList.js';
 import ItemCard from '../components/ItemCard.js';
 import ItemForm from '../components/ItemForm.js';
 import MoveItemDialog from '../components/MoveItemDialog.js';
+import ExpirationFilterPanel from '../components/ExpirationFilterPanel.js';
+import ExpirationWidget from '../components/ExpirationWidget.js';
+import SearchBar from '../components/SearchBar.js';
+import SearchResults from '../components/SearchResults.js';
+import SearchFilters from '../components/SearchFilters.js';
 
 const { ref, computed, onMounted, watch } = Vue;
 
@@ -28,6 +33,11 @@ export default {
     ItemCard,
     ItemForm,
     MoveItemDialog,
+    ExpirationFilterPanel,
+    ExpirationWidget,
+    SearchBar,
+    SearchResults,
+    SearchFilters,
   },
 
   setup() {
@@ -77,6 +87,30 @@ export default {
     const deletingItemLoading = ref(false);
     const showMoveDialog = ref(false);
     const movingItem = ref(null);
+
+    // Bulk import state
+    const activeBulkSession = ref(null);
+    const showBulkImport = ref(false);
+
+    // Expiration filter panel
+    const showExpirationPanel = ref(false);
+    const expirationPanelFilter = ref(null); // Initial filter when opening panel
+
+    // Search state
+    const searchQuery = ref('');
+    const searchResults = ref([]);
+    const searchLoading = ref(false);
+    const showSearchResults = ref(false);
+    const searchSuggestions = ref([]);
+    const searchFuzzyMatches = ref(0);
+    const searchSynonymsUsed = ref([]);
+    const searchMethod = ref('text');
+    const searchFilters = ref({
+      locationId: null,
+      categoryId: null,
+      expirationStatus: null,
+      storageType: null,
+    });
 
     // Fetch locations (both flat and tree)
     const fetchLocations = async () => {
@@ -313,6 +347,131 @@ export default {
       await fetchLocations();
     };
 
+    // Open expiration panel
+    const openExpirationPanel = (filter = null) => {
+      expirationPanelFilter.value = filter;
+      showExpirationPanel.value = true;
+    };
+
+    // Close expiration panel
+    const closeExpirationPanel = () => {
+      showExpirationPanel.value = false;
+      expirationPanelFilter.value = null;
+    };
+
+    // Handle widget filter click
+    const handleWidgetFilter = (status) => {
+      openExpirationPanel(status);
+    };
+
+    // Handle item click from expiration panel
+    const handleExpirationItemClick = (item) => {
+      // Close expiration panel and open item for editing
+      closeExpirationPanel();
+      editingItem.value = item;
+      showItemForm.value = true;
+    };
+
+    // Search items
+    const handleSearch = async (query) => {
+      searchQuery.value = query;
+      searchLoading.value = true;
+      showSearchResults.value = true;
+
+      try {
+        const response = await window.api.items.search(query, {
+          limit: 20,
+          ...searchFilters.value,
+        });
+        searchResults.value = response.data.items || [];
+        searchSuggestions.value = response.data.suggestions || [];
+        searchFuzzyMatches.value = response.data.fuzzyMatches || 0;
+        searchSynonymsUsed.value = response.data.synonymsUsed || [];
+        searchMethod.value = response.data.searchMethod || 'text';
+      } catch (err) {
+        console.error('Search failed:', err);
+        searchResults.value = [];
+        searchSuggestions.value = [];
+        searchFuzzyMatches.value = 0;
+        searchSynonymsUsed.value = [];
+      } finally {
+        searchLoading.value = false;
+      }
+    };
+
+    // Handle filter change - re-search if query exists
+    const handleFilterChange = async (newFilters) => {
+      searchFilters.value = newFilters;
+      if (searchQuery.value && searchQuery.value.length >= 2) {
+        await handleSearch(searchQuery.value);
+      }
+    };
+
+    // Clear search
+    const handleSearchClear = () => {
+      searchQuery.value = '';
+      searchResults.value = [];
+      searchSuggestions.value = [];
+      searchFuzzyMatches.value = 0;
+      searchSynonymsUsed.value = [];
+      showSearchResults.value = false;
+    };
+
+    // Handle suggestion click from search results
+    const handleSearchSuggestion = (suggestion) => {
+      handleSearch(suggestion);
+    };
+
+    // Handle search result selection
+    const handleSearchSelect = async (item) => {
+      showSearchResults.value = false;
+      searchQuery.value = '';
+      searchResults.value = [];
+
+      // Find and select the location, then open item for editing
+      if (item.locationId) {
+        try {
+          const response = await window.api.locations.getById(item.locationId._id || item.locationId);
+          selectedLocation.value = response.data.location;
+          showDetailPanel.value = true;
+
+          // Fetch breadcrumb and items
+          const [breadcrumbRes] = await Promise.all([
+            window.api.locations.getBreadcrumb(selectedLocation.value._id),
+            fetchItems(selectedLocation.value._id),
+          ]);
+          selectedAncestors.value = breadcrumbRes.data.ancestors || [];
+
+          // Open item for editing
+          editingItem.value = item;
+          showItemForm.value = true;
+        } catch (err) {
+          console.error('Failed to navigate to item:', err);
+          // Just open the item form directly
+          editingItem.value = item;
+          showItemForm.value = true;
+        }
+      } else {
+        // Just open the item form
+        editingItem.value = item;
+        showItemForm.value = true;
+      }
+    };
+
+    // Handle search focus
+    const handleSearchFocus = () => {
+      if (searchResults.value.length > 0) {
+        showSearchResults.value = true;
+      }
+    };
+
+    // Handle search blur (with delay for click handling)
+    const handleSearchBlur = () => {
+      setTimeout(() => {
+        showSearchResults.value = false;
+      }, 200);
+    };
+
     // Handle logout
     const handleLogout = async () => {
       try {
@@ -468,10 +627,32 @@ export default {
       }
     };
 
+    // Check for active bulk import session
+    const checkActiveBulkSession = async () => {
+      try {
+        const response = await window.api.bulkSessions.getActive();
+        activeBulkSession.value = response.data.session;
+      } catch (err) {
+        console.error('Failed to check bulk session:', err);
+      }
+    };
+
+    // Start bulk import
+    const startBulkImport = () => {
+      if (activeBulkSession.value) {
+        // Resume existing session
+        showBulkImport.value = true;
+      } else if (locations.value.length > 0) {
+        // Start new session with first location as target
+        showBulkImport.value = true;
+      }
+    };
+
     onMounted(() => {
       fetchLocations();
       fetchInvitesAndShares();
       fetchCategories();
+      checkActiveBulkSession();
     });
 
     return {
@@ -548,6 +729,33 @@ export default {
       openMoveDialog,
       closeMoveDialog,
       handleItemMoved,
+      // Expiration panel
+      showExpirationPanel,
+      expirationPanelFilter,
+      openExpirationPanel,
+      closeExpirationPanel,
+      handleExpirationItemClick,
+      handleWidgetFilter,
+      // Search
+      searchQuery,
+      searchResults,
+      searchLoading,
+      showSearchResults,
+      searchSuggestions,
+      searchFuzzyMatches,
+      searchSynonymsUsed,
+      searchMethod,
+      searchFilters,
+      handleSearch,
+      handleSearchClear,
+      handleSearchSelect,
+      handleSearchSuggestion,
+      handleSearchFocus,
+      handleSearchBlur,
+      handleFilterChange,
+      activeBulkSession,
+      showBulkImport,
+      startBulkImport,
     };
   },
 
@@ -689,7 +897,7 @@ export default {
         </div>
 
         <!-- Quick Actions -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div
             @click="openCreateModal"
             class="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow cursor-pointer border-2 border-dashed border-gray-200 hover:border-blue-400"
@@ -712,12 +920,63 @@ export default {
             <p v-if="locations.length === 0" class="text-xs text-gray-400 mt-2">Create a location first</p>
           </div>
 
-          <div class="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow cursor-pointer opacity-50">
-            <div class="text-3xl mb-3">🔍</div>
-            <h3 class="font-semibold text-gray-900 mb-1">Search</h3>
-            <p class="text-sm text-gray-600">Find items quickly with our smart search.</p>
-            <p class="text-xs text-gray-400 mt-2">Coming soon</p>
+          <div
+            @click="locations.length > 0 ? startBulkImport() : null"
+            :class="[
+              'bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow border-2 border-dashed border-gray-200 hover:border-green-400',
+              locations.length > 0 ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'
+            ]"
+          >
+            <div class="text-3xl mb-3">📥</div>
+            <h3 class="font-semibold text-gray-900 mb-1">Bulk Import</h3>
+            <p class="text-sm text-gray-600">Quickly scan and add many items at once.</p>
+            <p v-if="locations.length === 0" class="text-xs text-gray-400 mt-2">Create a location first</p>
+            <p v-else-if="activeBulkSession" class="text-xs text-green-600 mt-2">Session active - {{ activeBulkSession.pendingCount }} pending</p>
           </div>
+
+          <div class="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow relative">
+            <div class="text-3xl mb-3">🔍</div>
+            <h3 class="font-semibold text-gray-900 mb-1">Search Items</h3>
+            <p class="text-sm text-gray-600 mb-3">Find items quickly with smart search.</p>
+            <SearchBar
+              placeholder="Search by name, brand, tags..."
+              @search="handleSearch"
+              @clear="handleSearchClear"
+              @focus="handleSearchFocus"
+              @blur="handleSearchBlur"
+            />
+            <!-- Search Filters -->
+            <div class="mt-3">
+              <SearchFilters
+                :locations="locationTree"
+                :categories="categories"
+                :filters="searchFilters"
+                @change="handleFilterChange"
+                :compact="true"
+              />
+            </div>
+            <SearchResults
+              :results="searchResults"
+              :loading="searchLoading"
+              :query="searchQuery"
+              :show="showSearchResults"
+              :suggestions="searchSuggestions"
+              :fuzzyMatches="searchFuzzyMatches"
+              :synonymsUsed="searchSynonymsUsed"
+              :searchMethod="searchMethod"
+              @select="handleSearchSelect"
+              @close="handleSearchClear"
+              @search="handleSearchSuggestion"
+            />
+          </div>
+        </div>
+
+        <!-- Dashboard Widgets -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <ExpirationWidget
+            @click="openExpirationPanel()"
+            @filter="handleWidgetFilter"
+          />
         </div>
 
         <!-- My Locations -->
@@ -1224,6 +1483,14 @@ export default {
         :item="movingItem"
         @close="closeMoveDialog"
         @moved="handleItemMoved"
+      />
+
+      <!-- Expiration Filter Panel -->
+      <ExpirationFilterPanel
+        :show="showExpirationPanel"
+        :initial-filter="expirationPanelFilter"
+        @close="closeExpirationPanel"
+        @item-click="handleExpirationItemClick"
       />
     </div>
   `,

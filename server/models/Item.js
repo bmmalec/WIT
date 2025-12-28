@@ -181,9 +181,21 @@ const itemSchema = new mongoose.Schema(
       extendedExpirationDate: {
         type: Date,
       },
+      // Color-coded expiration period index (for sticker system)
+      // This is the period index relative to the user's start date
+      expirationPeriodIndex: {
+        type: Number,
+        default: null,
+      },
       batchNumber: {
         type: String,
         trim: true,
+      },
+      // Storage type for food items
+      storageType: {
+        type: String,
+        enum: ['pantry', 'refrigerated', 'frozen'],
+        default: null,
       },
     },
 
@@ -205,6 +217,12 @@ const itemSchema = new mongoose.Schema(
 
     // Consumable tracking
     consumedAt: {
+      type: Date,
+      default: null,
+    },
+
+    // Discarded tracking
+    discardedAt: {
       type: Date,
       default: null,
     },
@@ -429,6 +447,18 @@ itemSchema.methods.adjustQuantity = async function (adjustment) {
  */
 itemSchema.methods.markConsumed = async function () {
   this.consumedAt = new Date();
+  if (this.quantity.value > 0) {
+    this.quantity.value = 0;
+  }
+  this.isActive = false;
+  await this.save();
+};
+
+/**
+ * Instance: Mark as discarded
+ */
+itemSchema.methods.markDiscarded = async function () {
+  this.discardedAt = new Date();
   if (this.quantity.value > 0) {
     this.quantity.value = 0;
   }

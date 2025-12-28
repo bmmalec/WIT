@@ -221,10 +221,49 @@ const items = {
   /**
    * Search items
    * @param {string} query - Search query
-   * @param {number} limit - Max results
+   * @param {Object} options - Search options
+   * @param {number} options.limit - Max results
+   * @param {string} options.locationId - Filter by location
+   * @param {string} options.categoryId - Filter by category
+   * @param {string} options.expirationStatus - Filter by expiration ('expired', 'expiring', 'fresh', 'perishable')
+   * @param {string} options.storageType - Filter by storage ('pantry', 'refrigerated', 'frozen')
    */
-  search(query, limit = 50) {
-    return API.get(`/items/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+  search(query, options = {}) {
+    const params = new URLSearchParams();
+    params.append('q', query);
+    if (options.limit) params.append('limit', options.limit);
+    if (options.locationId) params.append('locationId', options.locationId);
+    if (options.categoryId) params.append('categoryId', options.categoryId);
+    if (options.expirationStatus) params.append('expirationStatus', options.expirationStatus);
+    if (options.storageType) params.append('storageType', options.storageType);
+    return API.get(`/items/search?${params.toString()}`);
+  },
+
+  /**
+   * Get autocomplete suggestions
+   * @param {string} query - Partial search query (min 2 chars)
+   * @param {Object} options - Options
+   * @param {number} options.limit - Max suggestions (default 10)
+   */
+  autocomplete(query, options = {}) {
+    const params = new URLSearchParams();
+    params.append('q', query);
+    if (options.limit) params.append('limit', options.limit);
+    return API.get(`/items/autocomplete?${params.toString()}`);
+  },
+
+  /**
+   * Get recent searches for current user
+   */
+  getRecentSearches() {
+    return API.get('/items/recent-searches');
+  },
+
+  /**
+   * Clear recent search history
+   */
+  clearRecentSearches() {
+    return API.delete('/items/recent-searches');
   },
 
   /**
@@ -267,6 +306,38 @@ const items = {
    */
   getLowStock() {
     return API.get('/items/low-stock');
+  },
+
+  /**
+   * Get items by expiration status
+   * @param {Object} options - Filter options
+   * @param {string} options.status - 'expired', 'current', 'expiring-soon', 'future', 'all'
+   * @param {number} options.periodIndex - Specific period index to filter by
+   * @param {number} options.currentPeriodIndex - Current period index for status calculation
+   */
+  getByExpirationStatus(options = {}) {
+    const params = new URLSearchParams();
+    if (options.status) params.append('status', options.status);
+    if (options.periodIndex !== undefined) params.append('periodIndex', options.periodIndex);
+    if (options.currentPeriodIndex !== undefined) params.append('currentPeriodIndex', options.currentPeriodIndex);
+    const queryString = params.toString();
+    return API.get(`/items/expiring${queryString ? `?${queryString}` : ''}`);
+  },
+
+  /**
+   * Mark item as consumed
+   * @param {string} id - Item ID
+   */
+  consume(id) {
+    return API.put(`/items/${id}/consume`);
+  },
+
+  /**
+   * Mark item as discarded
+   * @param {string} id - Item ID
+   */
+  discard(id) {
+    return API.put(`/items/${id}/discard`);
   },
 
   /**
@@ -441,10 +512,98 @@ const identify = {
   },
 };
 
+// Bulk Sessions API
+const bulkSessions = {
+  /**
+   * Start a new bulk import session
+   * @param {Object} data - { targetLocationId, defaultCategoryId?, name? }
+   */
+  start(data) {
+    return API.post('/bulk-sessions', data);
+  },
+
+  /**
+   * Get current active session
+   */
+  getActive() {
+    return API.get('/bulk-sessions/active');
+  },
+
+  /**
+   * Get session by ID
+   * @param {string} id - Session ID
+   */
+  get(id) {
+    return API.get(`/bulk-sessions/${id}`);
+  },
+
+  /**
+   * Get session history
+   * @param {Object} params - { limit?, skip? }
+   */
+  getHistory(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return API.get(`/bulk-sessions${query ? `?${query}` : ''}`);
+  },
+
+  /**
+   * Change target location
+   * @param {string} id - Session ID
+   * @param {string} locationId - New target location ID
+   */
+  changeTargetLocation(id, locationId) {
+    return API.put(`/bulk-sessions/${id}/target-location`, { locationId });
+  },
+
+  /**
+   * Add pending item to session
+   * @param {string} id - Session ID
+   * @param {Object} itemData - Item data
+   */
+  addItem(id, itemData) {
+    return API.post(`/bulk-sessions/${id}/items`, itemData);
+  },
+
+  /**
+   * Update pending item
+   * @param {string} id - Session ID
+   * @param {string} tempId - Temp ID of item
+   * @param {Object} updates - Updates to apply
+   */
+  updateItem(id, tempId, updates) {
+    return API.put(`/bulk-sessions/${id}/items/${tempId}`, updates);
+  },
+
+  /**
+   * Remove pending item (reject)
+   * @param {string} id - Session ID
+   * @param {string} tempId - Temp ID of item
+   */
+  removeItem(id, tempId) {
+    return API.delete(`/bulk-sessions/${id}/items/${tempId}`);
+  },
+
+  /**
+   * Commit session (save all items to inventory)
+   * @param {string} id - Session ID
+   */
+  commit(id) {
+    return API.post(`/bulk-sessions/${id}/commit`);
+  },
+
+  /**
+   * Cancel session
+   * @param {string} id - Session ID
+   */
+  cancel(id) {
+    return API.post(`/bulk-sessions/${id}/cancel`);
+  },
+};
+
 // Export for ES modules
-export { API, ApiError, auth, locations, items, categories, shares, identify };
+export { API, ApiError, auth, locations, items, categories, shares, identify, bulkSessions };
 
 // Also expose globally for non-module scripts
 window.API = API;
 window.ApiError = ApiError;
-window.api = { auth, locations, items, categories, shares, identify };
+window.api = { auth, locations, items, categories, shares, identify, bulkSessions };

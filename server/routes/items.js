@@ -67,6 +67,10 @@ const createItemRules = [
     .optional()
     .isArray()
     .withMessage('Alternate names must be an array'),
+  body('perishable.storageType')
+    .optional({ nullable: true })
+    .isIn(['pantry', 'refrigerated', 'frozen'])
+    .withMessage('Invalid storage type'),
 ];
 
 const updateItemRules = [
@@ -93,6 +97,10 @@ const updateItemRules = [
     .optional()
     .isIn(['tool', 'supply', 'part', 'consumable', 'equipment', 'other'])
     .withMessage('Invalid item type'),
+  body('perishable.storageType')
+    .optional({ nullable: true })
+    .isIn(['pantry', 'refrigerated', 'frozen'])
+    .withMessage('Invalid storage type'),
 ];
 
 const itemIdRule = [
@@ -129,7 +137,11 @@ const searchRules = [
 
 // Routes
 router.get('/search', searchRules, validate, itemController.search);
+router.get('/autocomplete', itemController.autocomplete);
 router.get('/low-stock', itemController.getLowStock);
+router.get('/expiring', itemController.getByExpirationStatus);
+router.get('/recent-searches', itemController.getRecentSearches);
+router.delete('/recent-searches', itemController.clearRecentSearches);
 
 router.post('/', createItemRules, validate, itemController.create);
 router.get('/:id', itemIdRule, validate, itemController.getById);
@@ -137,5 +149,7 @@ router.put('/:id', updateItemRules, validate, itemController.update);
 router.delete('/:id', itemIdRule, validate, itemController.delete);
 router.put('/:id/move', moveItemRules, validate, itemController.move);
 router.put('/:id/quantity', adjustQuantityRules, validate, itemController.adjustQuantity);
+router.put('/:id/consume', itemIdRule, validate, itemController.consume);
+router.put('/:id/discard', itemIdRule, validate, itemController.discard);
 
 module.exports = router;

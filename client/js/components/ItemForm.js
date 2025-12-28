@@ -4,6 +4,13 @@
  */
 
 import ImageUpload from './ImageUpload.js';
+import {
+  generatePeriodSchedule,
+  getCurrentPeriod,
+  getPeriodColor,
+  getPeriodStyle,
+  DEFAULT_COLORS,
+} from '../utils/expirationPeriods.js';
 
 const { ref, reactive, computed, onMounted, watch } = Vue;
 
@@ -15,6 +22,13 @@ const ITEM_TYPES = [
   { value: 'consumable', label: 'Consumable', icon: '🧴' },
   { value: 'equipment', label: 'Equipment', icon: '🖥️' },
   { value: 'other', label: 'Other', icon: '📋' },
+];
+
+// Storage types for perishable items
+const STORAGE_TYPES = [
+  { value: 'pantry', label: 'Pantry', icon: '🏠', description: 'Room temperature storage' },
+  { value: 'refrigerated', label: 'Refrigerated', icon: '❄️', description: 'Requires refrigeration' },
+  { value: 'frozen', label: 'Frozen', icon: '🧊', description: 'Keep frozen' },
 ];
 
 // Quantity units
@@ -93,6 +107,8 @@ export default {
         isPerishable: false,
         expirationDate: '',
         extendedExpirationDate: '',
+        expirationPeriodIndex: null,
+        storageType: null,
       },
       notes: '',
     });
@@ -121,6 +137,61 @@ export default {
       return 'text-green-600 bg-green-50';
     });
 
+    // User's expiration period settings
+    const userExpirationSettings = computed(() => {
+      const user = window.store?.state?.user;
+      return user?.settings?.expirationPeriod || {
+        periodType: 'quarterly',
+        startDate: new Date(new Date().getFullYear(), 0, 1),
+        colorScheme: DEFAULT_COLORS,
+        usePatterns: false,
+      };
+    });
+
+    // Whether to use patterns
+    const usePatterns = computed(() => {
+      return userExpirationSettings.value.usePatterns || false;
+    });
+
+    // Get period button style with optional pattern
+    const getPeriodButtonStyleFn = (periodIndex) => {
+      return getPeriodStyle(
+        periodIndex,
+        userExpirationSettings.value.colorScheme,
+        usePatterns.value
+      );
+    };
+
+    // Available periods for selection (current + 5 future periods)
+    const availablePeriods = computed(() => {
+      const settings = userExpirationSettings.value;
+      return generatePeriodSchedule(
+        new Date(settings.startDate),
+        settings.periodType,
+        settings.colorScheme,
+        6 // Show 6 periods
+      ).filter(p => p.status !== 'expired'); // Only current and future
+    });
+
+    // Selected period info
+    const selectedPeriod = computed(() => {
+      if (form.perishable.expirationPeriodIndex === null) return null;
+      const settings = userExpirationSettings.value;
+      const color = getPeriodColor(form.perishable.expirationPeriodIndex, settings.colorScheme);
+      const period = availablePeriods.value.find(p => p.index === form.perishable.expirationPeriodIndex);
+      return period || { ...color, index: form.perishable.expirationPeriodIndex };
+    });
+
+    // Select a period
+    const selectPeriod = (periodIndex) => {
+      form.perishable.expirationPeriodIndex = periodIndex;
+    };
+
+    // Clear period selection
+    const clearPeriod = () => {
+      form.perishable.expirationPeriodIndex = null;
+    };
+
     // Tag input
     const tagInput = ref('');
     const alternateNameInput = ref('');
@@ -137,12 +208,38 @@ export default {
       await loadCategories();
     });
 
+    // Reset form function - defined early for use in watcher
+    const resetFormData = () => {
+      form.name = '';
+      form.description = '';
+      form.categoryId = '';
+      form.itemType = 'other';
+      form.brand = '';
+      form.model = '';
+      form.sku = '';
+      form.size = '';
+      form.position = '';
+      form.tags = [];
+      form.alternateNames = [];
+      form.quantity = { value: 1, unit: 'each', minAlert: null };
+      form.value = { purchasePrice: null, currentValue: null, currency: 'USD', purchaseDate: '', vendor: '' };
+      form.perishable = { isPerishable: false, expirationDate: '', extendedExpirationDate: '', expirationPeriodIndex: null, storageType: null };
+      form.notes = '';
+      tagInput.value = '';
+      alternateNameInput.value = '';
+      error.value = '';
+      images.value = [];
+      if (imageUploadRef.value) {
+        imageUploadRef.value.clearPending();
+      }
+    };
+
     // Watch for item changes (edit mode)
     watch(() => props.item, (newItem) => {
       if (newItem) {
         populateForm(newItem);
       } else {
-        resetForm();
+        resetFormData();
       }
     }, { immediate: true });
 
@@ -188,35 +285,11 @@ export default {
         isPerishable: item.perishable?.isPerishable || false,
         expirationDate: item.perishable?.expirationDate ? item.perishable.expirationDate.split('T')[0] : '',
         extendedExpirationDate: item.perishable?.extendedExpirationDate ? item.perishable.extendedExpirationDate.split('T')[0] : '',
+        expirationPeriodIndex: item.perishable?.expirationPeriodIndex ?? null,
+        storageType: item.perishable?.storageType || null,
       };
       form.notes = item.notes || '';
       images.value = [...(item.images || [])];
-    };
-
-    // Reset form
-    const resetForm = () => {
-      form.name = '';
-      form.description = '';
-      form.categoryId = '';
-      form.itemType = 'other';
-      form.brand = '';
-      form.model = '';
-      form.sku = '';
-      form.size = '';
-      form.position = '';
-      form.tags = [];
-      form.alternateNames = [];
-      form.quantity = { value: 1, unit: 'each', minAlert: null };
-      form.value = { purchasePrice: null, currentValue: null, currency: 'USD', purchaseDate: '', vendor: '' };
-      form.perishable = { isPerishable: false, expirationDate: '', extendedExpirationDate: '' };
-      form.notes = '';
-      tagInput.value = '';
-      alternateNameInput.value = '';
-      error.value = '';
-      images.value = [];
-      if (imageUploadRef.value) {
-        imageUploadRef.value.clearPending();
-      }
     };
 
     // Add tag
@@ -329,12 +402,16 @@ export default {
             isPerishable: true,
             expirationDate: form.perishable.expirationDate || undefined,
             extendedExpirationDate: form.perishable.extendedExpirationDate || undefined,
+            expirationPeriodIndex: form.perishable.expirationPeriodIndex,
+            storageType: form.perishable.storageType || undefined,
           };
         } else {
           data.perishable = {
             isPerishable: false,
             expirationDate: undefined,
             extendedExpirationDate: undefined,
+            expirationPeriodIndex: null,
+            storageType: null,
           };
         }
 
@@ -349,7 +426,7 @@ export default {
 
         emit('saved', response.data.item);
         emit('close');
-        resetForm();
+        resetFormData();
       } catch (err) {
         console.error('Failed to save item:', err);
         error.value = err.message || 'Failed to save item';
@@ -360,7 +437,7 @@ export default {
 
     // Handle close
     const handleClose = () => {
-      resetForm();
+      resetFormData();
       emit('close');
     };
 
@@ -375,10 +452,16 @@ export default {
       isEditing,
       ITEM_TYPES,
       QUANTITY_UNITS,
+      STORAGE_TYPES,
       images,
       imageUploadRef,
       daysUntilExpiration,
       expirationStatusClass,
+      availablePeriods,
+      selectedPeriod,
+      selectPeriod,
+      clearPeriod,
+      getPeriodButtonStyleFn,
       addTag,
       removeTag,
       addAlternateName,
@@ -596,6 +679,101 @@ export default {
                     class="input max-w-xs"
                   />
                   <p class="text-xs text-gray-500 mt-1">When you're comfortable using this item (optional)</p>
+                </div>
+
+                <!-- Storage Type Selector -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Storage Type</label>
+                  <div class="flex flex-wrap gap-2">
+                    <button
+                      v-for="type in STORAGE_TYPES"
+                      :key="type.value"
+                      type="button"
+                      @click="form.perishable.storageType = form.perishable.storageType === type.value ? null : type.value"
+                      :class="[
+                        'flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all text-sm',
+                        form.perishable.storageType === type.value
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                      ]"
+                    >
+                      <span class="text-lg">{{ type.icon }}</span>
+                      <span class="font-medium">{{ type.label }}</span>
+                    </button>
+                  </div>
+                  <p v-if="form.perishable.storageType" class="text-xs text-gray-500 mt-2">
+                    {{ STORAGE_TYPES.find(t => t.value === form.perishable.storageType)?.description }}
+                  </p>
+                </div>
+
+                <!-- Expiration Period Color Selector -->
+                <div class="pt-4 border-t border-gray-200">
+                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Expiration Period Sticker
+                  </label>
+                  <p class="text-xs text-gray-500 mb-3">
+                    Select a color period to apply a sticker for easy visual tracking
+                  </p>
+
+                  <!-- Period selector -->
+                  <div class="flex flex-wrap gap-2 mb-3">
+                    <button
+                      v-for="period in availablePeriods"
+                      :key="period.index"
+                      type="button"
+                      @click="selectPeriod(period.index)"
+                      :class="[
+                        'flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all text-sm',
+                        form.perishable.expirationPeriodIndex === period.index
+                          ? 'ring-2 ring-offset-1 ring-blue-500'
+                          : 'hover:border-gray-300'
+                      ]"
+                      :style="{
+                        borderColor: period.color,
+                        backgroundColor: form.perishable.expirationPeriodIndex === period.index ? period.color + '20' : 'transparent'
+                      }"
+                    >
+                      <span
+                        class="w-4 h-4 rounded-full flex-shrink-0"
+                        :style="getPeriodButtonStyleFn(period.index)"
+                      ></span>
+                      <span class="font-medium text-gray-700">{{ period.colorName }}</span>
+                      <span class="text-gray-500 text-xs">{{ period.label }}</span>
+                    </button>
+                  </div>
+
+                  <!-- Selected period instruction -->
+                  <div v-if="selectedPeriod" class="p-3 rounded-lg" :style="{ backgroundColor: selectedPeriod.color + '15' }">
+                    <div class="flex items-start gap-3">
+                      <div
+                        class="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0"
+                        :style="getPeriodButtonStyleFn(form.perishable.expirationPeriodIndex)"
+                      >
+                        {{ selectedPeriod.colorName?.charAt(0) || '?' }}
+                      </div>
+                      <div class="flex-1">
+                        <p class="font-medium text-gray-900">
+                          Apply a <span :style="{ color: selectedPeriod.color }" class="font-bold">{{ selectedPeriod.colorName }}</span> sticker
+                        </p>
+                        <p class="text-sm text-gray-600 mt-1">
+                          Items with this sticker expire in {{ selectedPeriod.label || 'the selected period' }}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        @click="clearPeriod"
+                        class="text-gray-400 hover:text-gray-600"
+                      >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div v-else class="p-3 bg-gray-50 rounded-lg text-sm text-gray-500 text-center">
+                    Select a period above to get sticker instructions
+                  </div>
                 </div>
               </div>
             </div>
