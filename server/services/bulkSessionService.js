@@ -63,12 +63,16 @@ class BulkSessionService {
   }
 
   /**
-   * Get active session for user
+   * Get active or paused session for user (resumable session)
    * @param {ObjectId} userId - User ID
-   * @returns {Promise<Object|null>} Active session or null
+   * @returns {Promise<Object|null>} Active/paused session or null
    */
   async getActiveSession(userId) {
-    const session = await BulkSession.getActiveSession(userId);
+    const session = await BulkSession.getResumableSession(userId);
+    if (session) {
+      await session.populate('pendingItems.locationId', 'name icon type');
+      await session.populate('pendingItems.categoryId', 'name icon color');
+    }
     return session ? session.toJSON() : null;
   }
 
@@ -327,6 +331,68 @@ class BulkSessionService {
       errorDetails: errors,
       session: session.toJSON(),
     };
+  }
+
+  /**
+   * Pause session
+   * @param {ObjectId} userId - User ID
+   * @param {ObjectId} sessionId - Session ID
+   * @returns {Promise<Object>} Paused session
+   */
+  async pauseSession(userId, sessionId) {
+    const session = await BulkSession.findById(sessionId);
+
+    if (!session) {
+      throw AppError.notFound('Session not found', 'SESSION_NOT_FOUND');
+    }
+
+    if (session.userId.toString() !== userId.toString()) {
+      throw AppError.forbidden('You do not have access to this session', 'FORBIDDEN');
+    }
+
+    if (session.status !== 'active') {
+      throw AppError.badRequest('Only active sessions can be paused', 'INVALID_STATUS');
+    }
+
+    session.pause();
+    await session.save();
+
+    await session.populate('targetLocationId', 'name icon type');
+    await session.populate('defaultCategoryId', 'name icon color');
+
+    return session.toJSON();
+  }
+
+  /**
+   * Resume a paused session
+   * @param {ObjectId} userId - User ID
+   * @param {ObjectId} sessionId - Session ID
+   * @returns {Promise<Object>} Resumed session
+   */
+  async resumeSession(userId, sessionId) {
+    const session = await BulkSession.findById(sessionId);
+
+    if (!session) {
+      throw AppError.notFound('Session not found', 'SESSION_NOT_FOUND');
+    }
+
+    if (session.userId.toString() !== userId.toString()) {
+      throw AppError.forbidden('You do not have access to this session', 'FORBIDDEN');
+    }
+
+    if (session.status !== 'paused') {
+      throw AppError.badRequest('Only paused sessions can be resumed', 'INVALID_STATUS');
+    }
+
+    session.resume();
+    await session.save();
+
+    await session.populate('targetLocationId', 'name icon type');
+    await session.populate('defaultCategoryId', 'name icon color');
+    await session.populate('pendingItems.locationId', 'name icon type');
+    await session.populate('pendingItems.categoryId', 'name icon color');
+
+    return session.toJSON();
   }
 
   /**

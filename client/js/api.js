@@ -584,6 +584,22 @@ const bulkSessions = {
   },
 
   /**
+   * Pause session
+   * @param {string} id - Session ID
+   */
+  pause(id) {
+    return API.post(`/bulk-sessions/${id}/pause`);
+  },
+
+  /**
+   * Resume a paused session
+   * @param {string} id - Session ID
+   */
+  resume(id) {
+    return API.post(`/bulk-sessions/${id}/resume`);
+  },
+
+  /**
    * Commit session (save all items to inventory)
    * @param {string} id - Session ID
    */

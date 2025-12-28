@@ -138,6 +138,36 @@ exports.commitSession = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Pause session
+ * @route   POST /api/bulk-sessions/:id/pause
+ * @access  Private
+ */
+exports.pauseSession = asyncHandler(async (req, res) => {
+  const session = await bulkSessionService.pauseSession(req.user._id, req.params.id);
+
+  res.status(200).json({
+    success: true,
+    data: { session },
+    message: 'Session paused',
+  });
+});
+
+/**
+ * @desc    Resume a paused session
+ * @route   POST /api/bulk-sessions/:id/resume
+ * @access  Private
+ */
+exports.resumeSession = asyncHandler(async (req, res) => {
+  const session = await bulkSessionService.resumeSession(req.user._id, req.params.id);
+
+  res.status(200).json({
+    success: true,
+    data: { session },
+    message: 'Session resumed',
+  });
+});
+
+/**
  * @desc    Cancel session
  * @route   POST /api/bulk-sessions/:id/cancel
  * @access  Private

@@ -215,9 +215,34 @@ bulkSessionSchema.methods.cancel = function () {
   this.endedAt = new Date();
 };
 
+// Instance method: Pause session
+bulkSessionSchema.methods.pause = function () {
+  if (this.status === 'active') {
+    this.status = 'paused';
+    return true;
+  }
+  return false;
+};
+
+// Instance method: Resume session
+bulkSessionSchema.methods.resume = function () {
+  if (this.status === 'paused') {
+    this.status = 'active';
+    return true;
+  }
+  return false;
+};
+
 // Static method: Get active session for user
 bulkSessionSchema.statics.getActiveSession = function (userId) {
   return this.findOne({ userId, status: 'active' })
+    .populate('targetLocationId', 'name icon type')
+    .populate('defaultCategoryId', 'name icon color');
+};
+
+// Static method: Get active or paused session for user (resumable)
+bulkSessionSchema.statics.getResumableSession = function (userId) {
+  return this.findOne({ userId, status: { $in: ['active', 'paused'] } })
     .populate('targetLocationId', 'name icon type')
     .populate('defaultCategoryId', 'name icon color');
 };

@@ -91,6 +91,8 @@ router.put('/:id/target-location', changeLocationRules, validate, bulkSessionCon
 router.post('/:id/items', addItemRules, validate, bulkSessionController.addPendingItem);
 router.put('/:id/items/:tempId', updateItemRules, validate, bulkSessionController.updatePendingItem);
 router.delete('/:id/items/:tempId', removeItemRules, validate, bulkSessionController.removePendingItem);
+router.post('/:id/pause', sessionIdRule, validate, bulkSessionController.pauseSession);
+router.post('/:id/resume', sessionIdRule, validate, bulkSessionController.resumeSession);
 router.post('/:id/commit', sessionIdRule, validate, bulkSessionController.commitSession);
 router.post('/:id/cancel', sessionIdRule, validate, bulkSessionController.cancelSession);
 

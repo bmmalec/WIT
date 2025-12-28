@@ -355,6 +355,37 @@ export default {
       }
     };
 
+    // Pause session (US-9.1.4)
+    const pauseSession = async () => {
+      loading.value = true;
+      try {
+        const response = await window.api.bulkSessions.pause(session.value._id);
+        session.value = response.data.session;
+        window.store?.success('Session paused - you can resume anytime');
+        emit('close');
+      } catch (err) {
+        console.error('Failed to pause session:', err);
+        error.value = err.message || 'Failed to pause session';
+      } finally {
+        loading.value = false;
+      }
+    };
+
+    // Resume paused session (US-9.1.4)
+    const resumeSession = async () => {
+      loading.value = true;
+      try {
+        const response = await window.api.bulkSessions.resume(session.value._id);
+        session.value = response.data.session;
+        window.store?.success('Session resumed');
+      } catch (err) {
+        console.error('Failed to resume session:', err);
+        error.value = err.message || 'Failed to resume session';
+      } finally {
+        loading.value = false;
+      }
+    };
+
     // Cancel session
     const cancelSession = async () => {
       if (!confirm('Are you sure you want to cancel this session? All pending items will be discarded.')) {
@@ -651,6 +682,8 @@ export default {
       cancelEditItem,
       removeItem,
       commitSession,
+      pauseSession,
+      resumeSession,
       cancelSession,
       close,
       getLocationName,
@@ -763,6 +796,24 @@ export default {
 
             <!-- Active Session -->
             <div v-if="session" class="space-y-6">
+              <!-- Paused Banner (US-9.1.4) -->
+              <div v-if="session.status === 'paused'" class="flex items-center justify-between p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <div class="flex items-center gap-3">
+                  <span class="text-2xl">⏸️</span>
+                  <div>
+                    <p class="font-semibold text-amber-900">Session Paused</p>
+                    <p class="text-sm text-amber-700">Resume to continue adding items</p>
+                  </div>
+                </div>
+                <button
+                  @click="resumeSession"
+                  :disabled="loading"
+                  class="px-4 py-2 bg-amber-500 text-white font-medium rounded-lg hover:bg-amber-600 disabled:opacity-50 transition-colors"
+                >
+                  Resume
+                </button>
+              </div>
+
               <!-- Target Location Banner -->
               <div class="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
                 <div class="flex items-center gap-3">
@@ -774,7 +825,8 @@ export default {
                 </div>
                 <button
                   @click="showChangeLocation = true"
-                  class="px-3 py-1.5 text-sm bg-white border border-green-300 text-green-700 rounded-lg hover:bg-green-50 transition-colors"
+                  :disabled="session.status === 'paused'"
+                  class="px-3 py-1.5 text-sm bg-white border border-green-300 text-green-700 rounded-lg hover:bg-green-50 transition-colors disabled:opacity-50"
                 >
                   Change
                 </button>
@@ -796,8 +848,8 @@ export default {
                 </div>
               </div>
 
-              <!-- Action Buttons -->
-              <div class="grid grid-cols-3 gap-3">
+              <!-- Action Buttons (disabled when paused) -->
+              <div v-if="session.status === 'active'" class="grid grid-cols-3 gap-3">
                 <button
                   @click="startScanning('ai')"
                   class="py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex flex-col items-center justify-center gap-1 font-medium"
@@ -952,20 +1004,42 @@ export default {
 
           <!-- Footer (for active session) -->
           <div v-if="session && !commitResult" class="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
+            <div class="flex items-center gap-2">
+              <button
+                @click="cancelSession"
+                :disabled="loading || committing"
+                class="px-4 py-2 text-red-600 hover:text-red-700 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                v-if="session.status === 'active'"
+                @click="pauseSession"
+                :disabled="loading || committing"
+                class="px-4 py-2 text-amber-600 hover:text-amber-700 disabled:opacity-50 flex items-center gap-1"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Pause
+              </button>
+            </div>
             <button
-              @click="cancelSession"
-              :disabled="loading || committing"
-              class="px-4 py-2 text-red-600 hover:text-red-700 disabled:opacity-50"
-            >
-              Cancel Session
-            </button>
-            <button
+              v-if="session.status === 'active'"
               @click="commitSession"
               :disabled="pendingCount === 0 || committing"
               class="px-6 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
               <span v-if="committing">Committing...</span>
               <span v-else>Commit {{ pendingCount }} Items</span>
+            </button>
+            <button
+              v-else-if="session.status === 'paused'"
+              @click="resumeSession"
+              :disabled="loading"
+              class="px-6 py-2 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 disabled:opacity-50 transition-colors flex items-center gap-2"
+            >
+              Resume Session
             </button>
           </div>
         </div>
