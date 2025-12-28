@@ -112,6 +112,7 @@ app.use('/api/shopping-list', require('./routes/shoppingList')); // Shopping lis
 app.use('/api/analytics', require('./routes/analytics')); // Analytics
 app.use('/api/notifications', require('./routes/notifications')); // Notifications
 app.use('/api/export', require('./routes/export')); // Data export
+app.use('/api/labels', require('./routes/labels')); // Label & QR code generation
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

@@ -966,10 +966,74 @@ function downloadBlob(blob, filename) {
   window.URL.revokeObjectURL(url);
 }
 
+// Labels & QR Codes API
+const labels = {
+  /**
+   * Get available label sizes
+   */
+  getSizes() {
+    return API.get('/labels/sizes');
+  },
+
+  /**
+   * Get label for a single item
+   * @param {string} itemId - Item ID
+   * @param {Object} options - { qrSize }
+   */
+  getItemLabel(itemId, options = {}) {
+    const params = new URLSearchParams();
+    if (options.qrSize) params.append('qrSize', options.qrSize);
+    const query = params.toString();
+    return API.get(`/labels/item/${itemId}${query ? '?' + query : ''}`);
+  },
+
+  /**
+   * Get label for a single location
+   * @param {string} locationId - Location ID
+   * @param {Object} options - { qrSize }
+   */
+  getLocationLabel(locationId, options = {}) {
+    const params = new URLSearchParams();
+    if (options.qrSize) params.append('qrSize', options.qrSize);
+    const query = params.toString();
+    return API.get(`/labels/location/${locationId}${query ? '?' + query : ''}`);
+  },
+
+  /**
+   * Get batch labels for multiple items
+   * @param {string[]} itemIds - Array of item IDs
+   * @param {Object} options - { qrSize }
+   */
+  getBatchItemLabels(itemIds, options = {}) {
+    return API.post('/labels/items/batch', { itemIds, qrSize: options.qrSize });
+  },
+
+  /**
+   * Get batch labels for multiple locations
+   * @param {string[]} locationIds - Array of location IDs
+   * @param {Object} options - { qrSize }
+   */
+  getBatchLocationLabels(locationIds, options = {}) {
+    return API.post('/labels/locations/batch', { locationIds, qrSize: options.qrSize });
+  },
+
+  /**
+   * Get labels for all items in a location
+   * @param {string} locationId - Location ID
+   * @param {Object} options - { qrSize }
+   */
+  getLocationItemLabels(locationId, options = {}) {
+    const params = new URLSearchParams();
+    if (options.qrSize) params.append('qrSize', options.qrSize);
+    const query = params.toString();
+    return API.get(`/labels/location/${locationId}/items${query ? '?' + query : ''}`);
+  },
+};
+
 // Export for ES modules
-export { API, ApiError, auth, locations, items, categories, shares, identify, bulkSessions, shoppingList, analytics, notifications, dataExport };
+export { API, ApiError, auth, locations, items, categories, shares, identify, bulkSessions, shoppingList, analytics, notifications, dataExport, labels };
 
 // Also expose globally for non-module scripts
 window.API = API;
 window.ApiError = ApiError;
-window.api = { auth, locations, items, categories, shares, identify, bulkSessions, shoppingList, analytics, notifications, dataExport };
+window.api = { auth, locations, items, categories, shares, identify, bulkSessions, shoppingList, analytics, notifications, dataExport, labels };

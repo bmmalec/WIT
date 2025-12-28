@@ -23,6 +23,7 @@ import BulkImportModal from '../components/BulkImportModal.js';
 import ShoppingListPanel from '../components/ShoppingListPanel.js';
 import AnalyticsWidget from '../components/AnalyticsWidget.js';
 import NotificationCenter from '../components/NotificationCenter.js';
+import PrintLabelsDialog from '../components/PrintLabelsDialog.js';
 
 const { ref, computed, onMounted, watch } = Vue;
 
@@ -50,6 +51,7 @@ export default {
     ShoppingListPanel,
     AnalyticsWidget,
     NotificationCenter,
+    PrintLabelsDialog,
   },
 
   setup() {
@@ -99,6 +101,11 @@ export default {
     const deletingItemLoading = ref(false);
     const showMoveDialog = ref(false);
     const movingItem = ref(null);
+
+    // Print labels state
+    const showPrintLabels = ref(false);
+    const printLabelItem = ref(null);
+    const printLabelLocation = ref(null);
 
     // Bulk import state
     const activeBulkSession = ref(null);
@@ -360,6 +367,27 @@ export default {
       }
       // Refresh locations to update item counts
       await fetchLocations();
+    };
+
+    // Open print labels dialog for item
+    const openPrintLabelsForItem = (item) => {
+      printLabelItem.value = item;
+      printLabelLocation.value = null;
+      showPrintLabels.value = true;
+    };
+
+    // Open print labels dialog for location
+    const openPrintLabelsForLocation = (location) => {
+      printLabelItem.value = null;
+      printLabelLocation.value = location;
+      showPrintLabels.value = true;
+    };
+
+    // Close print labels dialog
+    const closePrintLabels = () => {
+      showPrintLabels.value = false;
+      printLabelItem.value = null;
+      printLabelLocation.value = null;
     };
 
     // Handle item consumed
@@ -853,6 +881,13 @@ export default {
       openMoveDialog,
       closeMoveDialog,
       handleItemMoved,
+      // Print labels
+      showPrintLabels,
+      printLabelItem,
+      printLabelLocation,
+      openPrintLabelsForItem,
+      openPrintLabelsForLocation,
+      closePrintLabels,
       // Consume/Discard handlers
       handleItemConsumed,
       handleItemDiscarded,
@@ -1474,6 +1509,7 @@ export default {
                       @edit="openEditItemForm(item)"
                       @delete="openDeleteItemConfirm(item)"
                       @move="openMoveDialog(item)"
+                      @print-label="openPrintLabelsForItem(item)"
                       @adjust-quantity="handleQuantityAdjust"
                       @consume="handleItemConsumed"
                       @discard="handleItemDiscarded"
@@ -1546,6 +1582,15 @@ export default {
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
                     Add Sub-location
+                  </button>
+                  <button
+                    @click="openPrintLabelsForLocation(selectedLocation)"
+                    class="btn-secondary px-4"
+                    title="Print Label"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+                    </svg>
                   </button>
                   <button
                     @click="openEditModal(selectedLocation); closeDetailPanel()"
@@ -1677,6 +1722,15 @@ export default {
       <ShoppingListPanel
         :show="showShoppingList"
         @close="closeShoppingList"
+      />
+
+      <!-- Print Labels Dialog -->
+      <PrintLabelsDialog
+        :show="showPrintLabels"
+        :mode="printLabelItem ? 'item' : 'location'"
+        :item="printLabelItem"
+        :location="printLabelLocation"
+        @close="closePrintLabels"
       />
     </div>
   `,
